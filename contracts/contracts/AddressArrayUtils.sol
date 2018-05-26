@@ -34,10 +34,10 @@ library AddressArrayUtils {
     for (uint256 i = 0; i < addresses.length - 1; i++) {
       for (uint256 j = i + 1; j < addresses.length; j++) {
         if (addresses[i] == addresses[j]) {
-          return false;
+          return true;
         }
       }
     }
-    return true;
+    return false;
   }
 }
