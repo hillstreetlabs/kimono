@@ -11,7 +11,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   using SafeMath for uint256;
   using AddressArrayUtils for address[];
 
-  enum RevealStatus { OnTime, Late, NoShow }
+  enum RevealStatus { NoShow, Late, OnTime }
 
   struct Message {
     address creator; // Address of the creator of the message
@@ -88,6 +88,27 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   modifier afterRevealPeriodStart(uint256 _nonce) {
     require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
+    _;
+  }
+
+  modifier afterRevealPeriodEnd(uint256 _nonce) {
+    require(
+      uint40(block.number) > nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
+      "Reveal period is not over."
+    );
+    _;
+  }
+
+  modifier beforeRevealPeriodStart(uint256 _nonce) {
+    require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period already started.");
+    _;
+  }
+
+  modifier beforeRevealPeriodEnd(uint256 _nonce) {
+    require(
+      uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
+      "Reveal period is over."
+    );
     _;
   }
 
@@ -215,7 +236,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
     for (uint256 i = 0; i < _revealerAddresses.length; i++) {
       messageToRevealerToHashOfFragments[_nonce][_revealerAddresses[i]] = _revealerHashOfFragments[i];
-      messageToRevealerToRevealStatus[_nonce][_revealerAddresses[i]] = RevealStatus.NoShow;
       revealerToMessages[_revealerAddresses[i]].push(_nonce);
     }
     messageToRevealers[_nonce] = _revealerAddresses;
@@ -244,15 +264,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function revealFragment(uint256 _nonce, uint256 _fragment)
     public
-    nonReentrant
+    nonReentrant // TODO: Does this have to non re-entrant?
     messageExists(_nonce)
     afterRevealPeriodStart(_nonce)
+    beforeRevealPeriodEnd(_nonce)
     withValidFragment(_nonce, _fragment, msg.sender)
   {
-    require(
-      uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
-      "Reveal period is over."
-    );
     require(
       messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
       "Message sender is not part of the revealers."
@@ -283,6 +300,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != keccak256(_secret),
       "Revealer submitted an invalid secret."
     );
+
     // TODO: Remove fragments + hashes upon withdrawal to free space and get gas refund
     Message storage message = nonceToMessage[_nonce];
     message.revealSecret = _secret;
@@ -291,67 +309,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit SecretReveal(_nonce, msg.sender, _secret);
   }
 
-  function withdrawStake(uint256 _nonce) public messageExists(_nonce) {
-    require(
-      uint40(block.number) > nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
-      "Reveal period is not over."
-    );
-
-    Message storage message = nonceToMessage[_nonce];
-    uint256 amount;
-    uint256 oldBalance;
-
-    // TODO: If messageToRevealerToStake is updated, should the totalStake be updated as well?
-    // TODO: Remove fragments + hashes upon withdrawal to free space and get gas refund
-
-    // Creator
-    if (msg.sender == message.creator && !message.creatorWithdrewStake) {
-      message.creatorWithdrewStake = true;
-      // Calculate the total stake of the NoShows
-      for (uint256 i = 0; i < messageToRevealers[_nonce].length; i++) {
-        address revealer = messageToRevealers[_nonce][i];
-        if (messageToRevealerToRevealStatus[_nonce][revealer] == RevealStatus.NoShow) {
-          oldBalance = messageToRevealerToStake[_nonce][revealer];
-          messageToRevealerToStake[_nonce][revealer] = 0;
-          amount.add(oldBalance);
-        }
-      }
-    }
-
-    // Secret constructor
-    if (msg.sender == message.secretConstructor && !message.secretConstructorWithdrewStake) {
-      message.secretConstructorWithdrewStake = true;
-      amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
-    }
-
-    // Revealer showed up, so return stake
-    // No need to see if msg.sender is part of the revealers. If they are not, their balance will be 0
-    if (messageToRevealerToRevealStatus[_nonce][msg.sender] != RevealStatus.NoShow) {
-      oldBalance = messageToRevealerToStake[_nonce][msg.sender];
-      if (oldBalance > 0) {
-        messageToRevealerToStake[_nonce][msg.sender] = 0;
-        amount.add(oldBalance);
-
-        // Revealer was on time, so also give the reward
-        if (messageToRevealerToRevealStatus[_nonce][msg.sender] == RevealStatus.OnTime) {
-          amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
-        }
-      }
-    }
-
-    if (amount > 0 ) {
-      require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, amount));
-      emit StakeWithdrawal(msg.sender, amount);
-    }
-  }
-
   function tattle(uint256 _nonce, uint256 _fragment, address _tattlee)
     public
     messageExists(_nonce)
     withValidFragment(_nonce, _fragment, _tattlee)
+    beforeRevealPeriodStart(_nonce)
   {
-    require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period already started.");
-
     uint256 balance = messageToRevealerToStake[_nonce][_tattlee];
     messageToRevealerToStake[_nonce][_tattlee] = 0;
 
@@ -360,6 +323,40 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
     require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
     emit TattleTale(msg.sender, _tattlee);
+  }
+
+  function withdrawStake(uint256 _nonce)
+    public
+    messageExists(_nonce)
+    afterRevealPeriodEnd(_nonce)
+  {
+    Message storage message = nonceToMessage[_nonce];
+    uint256 amount = 0;
+
+    // TODO: If messageToRevealerToStake is updated, should the totalStake be updated as well?
+    // TODO: Remove fragments + hashes upon withdrawal to free space and get gas refund
+
+    // Creater punishes no-shows
+    if (msg.sender == message.creator && !message.creatorWithdrewStake) {
+      message.creatorWithdrewStake = true;
+      amount.add(getTotalNoShowStake(_nonce));
+    }
+
+    // Reward secret constructor
+    if (msg.sender == message.secretConstructor && !message.secretConstructorWithdrewStake) {
+      message.secretConstructorWithdrewStake = true;
+      amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
+    }
+
+    // Revealer showed up, so return stake
+    if (messageToRevealerToRevealStatus[_nonce][msg.sender] != RevealStatus.NoShow) {
+      amount.add(getTotalRevealerStake(_nonce));
+    }
+
+    if (amount > 0) {
+      require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, amount));
+      emit StakeWithdrawal(msg.sender, amount);
+    }
   }
 
   function getMessage(uint256 _nonce)
@@ -401,5 +398,36 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function getEligibleRevealersCount() external view returns(uint256 count) {
     return eligibleRevealers.length;
+  }
+
+  function getTotalRevealerStake(uint256 _nonce) internal returns (uint256) {
+    Message memory message = nonceToMessage[_nonce];
+    uint256 amount = 0;
+    uint256 oldBalance = messageToRevealerToStake[_nonce][msg.sender];
+
+    // No need to see if msg.sender is part of the revealers. If they are not, their balance will be 0
+    if (oldBalance > 0) {
+      messageToRevealerToStake[_nonce][msg.sender] = 0;
+      amount.add(oldBalance);
+
+      // Revealer was on time, so also give the reward
+      if (messageToRevealerToRevealStatus[_nonce][msg.sender] == RevealStatus.OnTime) {
+        amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
+      }
+    }
+    return amount;
+  }
+
+  function getTotalNoShowStake(uint256 _nonce) internal returns (uint256) {
+    uint256 amount = 0;
+    for (uint256 i = 0; i < messageToRevealers[_nonce].length; i++) {
+      address revealer = messageToRevealers[_nonce][i];
+      if (messageToRevealerToRevealStatus[_nonce][revealer] == RevealStatus.NoShow) {
+        uint256 oldBalance = messageToRevealerToStake[_nonce][revealer];
+        messageToRevealerToStake[_nonce][revealer] = 0;
+        amount.add(oldBalance);
+      }
+    }
+    return amount;
   }
 }
