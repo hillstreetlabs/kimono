@@ -4,15 +4,20 @@ require("dotenv").config();
 import program = require("commander");
 import Revealer from "./Revealer";
 
-console.log(program);
-
 program
   .command("reveal")
   .description("Starts a revealer")
   .action(async () => {
-    const revealer = new Revealer(
-      "0x0000000000000000000000000000000000000000000000000000000000000000"
-    );
+    const revealer = new Revealer(process.env.PRIVATE_KEY);
+    revealer.start();
+    process.on("SIGINT", () => revealer.exit());
+  });
+
+program
+  .command("combiner")
+  .description("Starts a combiner")
+  .action(async () => {
+    const revealer = new Revealer(process.env.PRIVATE_KEY);
     revealer.start();
     process.on("SIGINT", () => revealer.exit());
   });
@@ -22,13 +27,11 @@ program
   .description("Start N revealers for testing")
   .option("-N --number", "Number of revealers to launch", parseInt)
   .action(async (options: { number: number }) => {
-    console.log(options.number);
-    const revealers: Revealer[] = new Array(options.number).map(
-      () =>
-        new Revealer(
-          "0x0000000000000000000000000000000000000000000000000000000000000000"
-        )
-    );
+    const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+    const number = options.number || privateKeys.length;
+    const revealers: Revealer[] = new Array(number)
+      .fill(0)
+      .map((_, i) => new Revealer(privateKeys[i]));
 
     revealers.forEach(revealer => {
       revealer.start();
