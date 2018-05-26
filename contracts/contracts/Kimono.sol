@@ -21,9 +21,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     uint40 revealBlock; // Block number for the start of the reveal period
     uint40 revealPeriod; // Length of the period when it's okay to reveal secret fragments
     address secretConstructor; // Address of the constructor of the secret
-    bool creatorWithdrewStake;
-    bool secretConstructorWithdrewStake;
-    uint8 onTimeRevealerCount;
+    bool creatorWithdrewStake; // True if creator withdrew their stake (and punished no-showers)
+    bool secretConstructorWithdrewStake; // True if secret constructor withdrew their stake
+    uint8 onTimeRevealerCount; // Count of revealers who submitted their fragment before secret construction
     uint256 revealSecret; // Secret that'll be used to decrypt the message
     uint256 hashOfRevealSecret; // Hash of the revealSecret, submitted by the user and used for verification
     uint256 timeLockReward; // Time lock reward staked by the creator of the message
@@ -38,16 +38,16 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   }
 
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
+
   mapping (uint256 => Message) public nonceToMessage;
   mapping (address => uint256[]) public revealerToMessages;
   mapping (uint256 => address[]) public messageToRevealers;
-  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToFragments; // Addresses to decrypted fragments
-  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments; // Addresses to hash of fragments, used for verification
+  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToFragments;
+  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments;
   mapping (uint256 => mapping(address => RevealStatus)) public messageToRevealerToRevealStatus;
   mapping(address => Revealer) public revealerTable;
   mapping(address => uint256) public totalStakes;
-  mapping(address => uint256[]) revealerToJobs;
-  mapping(uint256 => mapping(address => uint256)) jobToRevealerToStake;
+  mapping(uint256 => mapping(address => uint256)) public messageToRevealerToStake;
 
   address[] public eligibleRevealers;
   address public kimonoCoinAddress;
@@ -128,9 +128,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function getReservedAmount(address _revealer) returns (uint256) {
     uint256 reservedAmount = 0;
-    for(uint256 i = 0; i < revealerToJobs[_revealer].length; i++) {
-      uint256 job = revealerToJobs[_revealer][i];
-      reservedAmount = reservedAmount.add(jobToRevealerToStake[job][_revealer]);
+    for(uint256 i = 0; i < revealerToMessages[_revealer].length; i++) {
+      uint256 nonce = revealerToMessages[_revealer][i];
+      reservedAmount = reservedAmount.add(messageToRevealerToStake[nonce][_revealer]);
     }
     return reservedAmount;
   }
@@ -225,7 +225,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit MessageCreation(_nonce, msg.sender, _encryptedFragmentsIPFSHash, _revealerAddresses);
   }
 
-  function revealFragment(uint256 _nonce, uint256 _fragment) public {
+  function revealFragment(uint256 _nonce, uint256 _fragment) public nonReentrant {
     require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
     require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
@@ -273,6 +273,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   }
 
   function withdrawStake(uint256 _nonce) public {
+    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
     require(
       uint40(block.number) > nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
       "Reveal period is not over."
@@ -282,16 +283,17 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     uint256 amount;
     uint256 oldBalance;
 
-    // TODO: If jobToRevealerToStake is updated, should the totalStake be updated as well?
+    // TODO: If messageToRevealerToStake is updated, should the totalStake be updated as well?
 
     // Creator
     if (msg.sender == message.creator && !message.creatorWithdrewStake) {
       message.creatorWithdrewStake = true;
+      // Calculate the total stake of the NoShows
       for (uint256 i = 0; i < messageToRevealers[_nonce].length; i++) {
         address revealer = messageToRevealers[_nonce][i];
         if (messageToRevealerToRevealStatus[_nonce][revealer] == RevealStatus.NoShow) {
-          oldBalance = jobToRevealerToStake[_nonce][revealer];
-          jobToRevealerToStake[_nonce][revealer] = 0;
+          oldBalance = messageToRevealerToStake[_nonce][revealer];
+          messageToRevealerToStake[_nonce][revealer] = 0;
           amount.add(oldBalance);
         }
       }
@@ -304,10 +306,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
 
     // Revealer showed up, so return stake
+    // No need to see if msg.sender is part of the revealers. If they are not, their balance will be 0
     if (messageToRevealerToRevealStatus[_nonce][msg.sender] != RevealStatus.NoShow) {
-      oldBalance = jobToRevealerToStake[_nonce][msg.sender];
+      oldBalance = messageToRevealerToStake[_nonce][msg.sender];
       if (oldBalance > 0) {
-        jobToRevealerToStake[_nonce][msg.sender] = 0;
+        messageToRevealerToStake[_nonce][msg.sender] = 0;
         amount.add(oldBalance);
 
         // Revealer was on time, so also give the reward
