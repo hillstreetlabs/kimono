@@ -12,9 +12,9 @@ import Demo from "./Demo";
 export class App extends Component {
   render() {
     // Return null for initial loading
-    if (this.props.store.contracts.loadingContracts) return null;
+    if (this.props.store.loadingContracts) return null;
     // Return locked screen if contract not deployed on network
-    if (!this.props.store.contracts.ready)
+    if (!this.props.store.kimonoReady)
       return <div>Kimono contracts not found. Try another network.</div>;
     // Return null for initial user loading
     if (this.props.store.loadingCurrentUser) return null;

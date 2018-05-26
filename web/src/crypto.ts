@@ -61,7 +61,7 @@ function concat(array1: Uint8Array, array2: Uint8Array) {
   return newArray;
 }
 
-function sha256(bytes: Uint8Array) {
+export function sha256(bytes: Uint8Array) {
   return new Uint8Array(sha.arrayBuffer(bytes));
 }
 
@@ -99,6 +99,11 @@ export function createSecretFragments(
   minFragments: number,
   totalFragments: number
 ) {
-  const secretKey = bytesToHex(secret);
+  const secretKey = bytesToHex(secret).substring(2); // Remove 0x
+  console.log("createSecretFragments", secretKey);
   return secrets.share(secretKey, minFragments, totalFragments);
+}
+
+export function combineSecretFragments(fragments: Array<string>) {
+  return secrets.combine(fragments);
 }
