@@ -1,6 +1,7 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./KimonoCoin.sol";
 import "./IPFSWrapper.sol";
 
 
@@ -27,15 +28,26 @@ contract Kimono is IPFSWrapper {
     uint256 stake;
   }
 
+  uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
   Message[] public messages;
   mapping(address => Revealer) revealerTable;
   address[] revealers;
-  address kimonoToken;
+  address kimonoCoinAddress;
+
+  // EVENTS
+
+  event MessageCreation(
+    uint256 messageId,
+    address creator,
+    address[] revealerAddresses,
+    bytes encryptedFragmentsIPFSHash
+  );
 
   // CONSTRUCTOR
 
-  constructor () public {
-
+  constructor (address _kimonoCoinAddress) public {
+    kimonoCoinAddress = _kimonoCoinAddress;
+    KimonoCoin(kimonoCoinAddress).approveAll(address(this));
   }
 
   // FALLBACK FUNCTION
@@ -45,10 +57,58 @@ contract Kimono is IPFSWrapper {
 
   }
 
+  // PUBLIC FUNCTIONS
+
   function advertise() public {
     // take stake
   }
 
   function cancel() public {
+  }
+
+  function createMessage(
+    uint8 _minFragments,
+    uint8 _totalFragments,
+    uint40 _revealBlock,
+    uint40 _revealPeriod,
+    uint256 _hashOfRevealSecret,
+    uint256 _timeLockReward,
+    address[] _revealerAddresses,
+    uint256[] _revealerHashOfFragments,
+    bytes _encryptedMessageIPFSHash,
+    bytes _encryptedFragmentsIPFSHash
+  )
+    public
+    returns (uint256)
+  {
+    require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
+    require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
+    // TODO: Add some form of validation for minFragments and totalFragments
+
+    Message memory message = Message({
+      creator: msg.sender,
+      minFragments: _minFragments,
+      totalFragments: _totalFragments,
+      revealBlock: _revealBlock,
+      revealPeriod: _revealPeriod,
+      revealSecret: uint256(0),
+      hashOfRevealSecret: _hashOfRevealSecret,
+      timeLockReward: _timeLockReward,
+      encryptedMessage: splitIPFSHash(_encryptedMessageIPFSHash),
+      encryptedFragments: splitIPFSHash(_encryptedFragmentsIPFSHash)
+    });
+
+    for (uint256 i = 0; i < _revealerAddresses.length; i++) {
+      message.revealerToHashOfFragments[_revealerAddresses[i]] = _revealerHashOfFragments[i];
+    }
+
+    uint64 messageId = uint64(messages.push(message) - 1);
+
+    // Transfer the staked KimonoCoins to the contract.
+    // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
+    require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), _timeLockReward));
+
+    emit MessageCreation(messageId, msg.sender, _revealerAddresses, _encryptedFragmentsIPFSHash);
+    return messageId;
   }
 }
