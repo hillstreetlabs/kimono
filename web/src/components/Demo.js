@@ -20,10 +20,11 @@ export default class Demo extends Component {
     await this.props.store.kimono.createMessage(
       this.secretKey,
       this.content,
-      10,
+      1000,
       new BN(100000),
-      5,
-      10
+      2,
+      3,
+      { from: this.props.store.currentUser.address }
     );
   }
 

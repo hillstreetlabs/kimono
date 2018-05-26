@@ -51,7 +51,7 @@ export default class Store {
     if (!this.networkVersion) return null;
     const address = (KimonoBuild.networks[this.networkVersion] || {}).address;
     if (!address) return null;
-    return new Kimono(this.eth, address);
+    return new Kimono(this.eth.currentProvider, address);
   }
 
   @action
@@ -81,7 +81,7 @@ export default class Store {
       Eth.fromUtf8(message, "hex"),
       this.currentUser.address
     );
-    const secretKey = crypto.sha256(crypto.hexToBytes(result));
+    const secretKey = crypto.sha3(crypto.hexToBytes(result));
     return crypto.bytesToHex(secretKey);
   }
 }
