@@ -143,7 +143,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     updateEligibleRevealer(msg.sender, reservedAmount, _stakePerMessage);
   }
 
-  function updateEligibleRevealer(address _revealerAddress, uint256 _reservedAmount, uint256 _stakePerMessage) internal {
+  function updateEligibleRevealer(address _revealerAddress, uint256 _reservedAmount, uint256 _stakePerMessage)
+    internal
+  {
     uint256 index;
     bool isIn;
     // TODO: update index implementation to search from the end, for revealer
@@ -187,8 +189,10 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
-    require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
-    require(_minFragments > 2, "The minimum number of fragments is 2");
+    require(_revealPeriod >= MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
+    require(_minFragments >= 2, "The minimum number of fragments is 2");
+    require(_totalFragments == _revealerAddresses.length, "Incorrect number of fragments");
+    require(_totalFragments == _revealerHashOfFragments.length, "Incorrect number of fragments");
 
     reserveStakes(_revealerAddresses, _nonce);
 
@@ -279,7 +283,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != keccak256(_secret),
       "Revealer submitted an invalid secret."
     );
-
+    // TODO: Remove fragments + hashes upon withdrawal to free space and get gas refund
     Message storage message = nonceToMessage[_nonce];
     message.revealSecret = _secret;
     message.secretConstructor = msg.sender;
@@ -298,6 +302,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     uint256 oldBalance;
 
     // TODO: If messageToRevealerToStake is updated, should the totalStake be updated as well?
+    // TODO: Remove fragments + hashes upon withdrawal to free space and get gas refund
 
     // Creator
     if (msg.sender == message.creator && !message.creatorWithdrewStake) {
