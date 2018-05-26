@@ -1,9 +1,12 @@
 declare module "ethjs-contract" {
-  import EthQuery = require("ethjs-query");
+  import Eth = require("ethjs-query");
 
-  class EthContract {
-    constructor(query: EthQuery);
+  export interface Contract<T> {
+    at: (address: str) => T;
   }
 
-  export = EthContract;
+  declare function EthContract(eth: Eth): ContractBuilder;
+  type ContractBuilder = <T>(abi: any) => Contract<T>;
+
+  export default EthContract;
 }
