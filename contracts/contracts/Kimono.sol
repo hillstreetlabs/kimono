@@ -227,10 +227,10 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit MessageCreation(_nonce, msg.sender, _encryptedFragmentsIPFSHash, _revealerAddresses);
   }
 
-  function reserveStakes(address[] _revealerAddresses, uint256 _nonce) public {
+  function reserveStakes(address[] _revealerAddresses, uint256 _nonce) internal {
     for(uint256 i = 0; i < _revealerAddresses.length; i++) {
       address revealerAddress = _revealerAddresses[i];
-      Revealer storage revealer = revealerTable[revealerAddress];
+      Revealer memory revealer = revealerTable[revealerAddress];
 
       uint256 reservedAmount = getReservedAmount(msg.sender);
       require(totalStakes[revealerAddress].sub(reservedAmount) > revealer.stakePerMessage);
