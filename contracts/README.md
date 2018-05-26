@@ -49,3 +49,9 @@ MNEMONIC="your mnemonic" INFURA_API_KEY="your API key" yarn run migrate:rinkeby
 # or
 MNEMONIC="your mnemonic" INFURA_API_KEY="your API key" yarn run migrate:mainnet
 ```
+
+## Notes
+- Maybe add min time to be configurable by revealer during advertising
+- Think about extending functionality to allow other contracts to manage revealers on their behalf (don't use msg.sender)
+
+
