@@ -1,0 +1,32 @@
+{
+  "name": "kimono-contracts",
+  "version": "0.0.1",
+  "description": "Contracts for ETH Buenos Aires hackathon project",
+  "main": "index.js",
+  "scripts": {
+    "test": "truffle test --network test",
+    "lint": "solium --dir ./contracts",
+    "ganache": "sh ganache.sh",
+    "migrate:rinkeby": "truffle migrate --network rinkeby",
+    "migrate:mainnet": "truffle migrate --network mainnet"
+  },
+  "author": "Hill Street Labs",
+  "dependencies": {
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-register": "^6.26.0",
+    "dotenv": "^5.0.1",
+    "openzeppelin-solidity": "^1.9.0",
+    "truffle-hdwallet-provider": "^0.0.3"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "chai-bignumber": "^2.0.2",
+    "espresso-tests": "^1.0.5",
+    "eth-gas-reporter": "^0.1.2",
+    "ethereumjs-util": "^5.2.0",
+    "ganache-cli": "^6.1.0",
+    "solium": "^1.1.6"
+  }
+}

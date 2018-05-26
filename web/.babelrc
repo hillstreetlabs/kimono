@@ -1,0 +1,16 @@
+{
+  "presets": [["env", { "modules": false }], "react", "stage-0"],
+  "plugins": [
+  "mobx-async-action",
+    "transform-decorators-legacy",
+    ["emotion", {
+      "autoLabel": true,
+      "labelFormat": "[filename]-[local]"
+    }]
+  ],
+  "env": {
+    "test": {
+      "presets": [["env"], "react", "stage-0"]
+    }
+  }
+}
