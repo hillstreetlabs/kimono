@@ -2,6 +2,8 @@ declare module "ethjs-shared" {
   import BN = require("bn.js");
 
   export interface Transaction {
+    hash: string;
+    blockHash: string;
     from?: string;
     to?: string;
     gas?: BN;
@@ -41,7 +43,7 @@ declare module "ethjs-shared" {
     gasLimit: BN;
     gasUsed: BN;
     timestamp: BN;
-    transactions: Array<TransactionReceipt>;
+    transactions: Array<Transaction>;
     uncles: Array<string>;
   }
 
