@@ -48,8 +48,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
 
-  // messageHash => revealerAddress => balance
-  mapping(bytes32 => mapping(address => uint256)) balances;
+  // nonce => revealerAddress => balance
+  mapping(uint256 => mapping(address => uint256)) balances;
 
   // CONSTRUCTOR
 
@@ -95,20 +95,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedMessageIPFSHash,
     bytes _encryptedFragmentsIPFSHash
   ) public {
-    bytes32 messageHash = keccak256(
-      _nonce,
-      _minFragments,
-      _totalFragments,
-      _revealBlock,
-      _revealPeriod,
-      _hashOfRevealSecret,
-      _timeLockReward,
-      _revealerAddresses,
-      _revealerHashOfFragments,
-      _encryptedMessageIPFSHash,
-      _encryptedFragmentsIPFSHash
-    );
-    propose(messageHash, _selectedRevealers);
+    propose(_nonce, _selectedRevealers);
     createMessage(
       _nonce,
       _minFragments,
@@ -124,11 +111,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function propose(bytes32 messageHash, address[] _selectedRevealers) internal {
+  function propose(uint256 _nonce, address[] _selectedRevealers) internal {
     for(uint256 i = 0; i < _selectedRevealers.length; i++) {
       Revealer storage revealer = revealerTable[_selectedRevealers[i]];
       require(ERC20(kimonoCoinAddress).transferFrom(msg.sender, address(this), revealer.stakeAmount));
-      balances[messageHash][msg.sender] = balances[messageHash][msg.sender].add(revealer.stakeAmount);
+      balances[_nonce][msg.sender] = balances[_nonce][msg.sender].add(revealer.stakeAmount);
     }
   }
 
@@ -272,4 +259,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   function getWithdrawalAmountForNoShows() internal returns (uint256) {
 
   }
+
+  function getRevealersCount() external view returns(uint256) {
+    return revealers.length;
+  }
+
+  function getEligibleRevealers() external view returns(uint256) {
+  }
+
 }
