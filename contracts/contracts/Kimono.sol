@@ -151,6 +151,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     internal
     returns (bool)
   {
+    require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
     require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
     require(_minFragments > 2, "The minimum number of fragments is 2");
@@ -221,7 +222,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     return true;
   }
 
-  function withdrawStake() public returns (bool) {
+  function withdrawStake(uint256 _nonce) public returns (bool) {
 
   }
 
@@ -256,19 +257,19 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function getWithdrawalAmountForCreator() internal {
+  function getWithdrawalAmountForCreator() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForRevealer() internal {
+  function getWithdrawalAmountForRevealer() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForLateRevealer() internal {
+  function getWithdrawalAmountForLateRevealer() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForNoShows() internal {
+  function getWithdrawalAmountForNoShows() internal returns (uint256) {
 
   }
 }
