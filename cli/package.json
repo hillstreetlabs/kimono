@@ -7,10 +7,14 @@
   "dependencies": {
     "@types/node": "^10.1.2",
     "babel-runtime": "^6.26.0",
+    "bs58": "^4.0.1",
     "clui": "^0.3.6",
     "commander": "^2.15.1",
     "dotenv": "^5.0.1",
     "ethstream": "0.0.9",
+    "js-sha3": "^0.7.0",
+    "tweetnacl": "^1.0.0",
+    "tweetnacl-util": "^0.15.0",
     "typescript": "^2.8.3"
   }
 }
