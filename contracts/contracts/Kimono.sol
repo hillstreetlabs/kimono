@@ -92,6 +92,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     _;
   }
 
+  modifier noDuplicates(address[] addresses) {
+    require(!addresses.hasDuplicate());
+    _;
+  }
+
   // PUBLIC FUNCTIONS
 
   function registerRevealer(
@@ -166,6 +171,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedFragmentsIPFSHash
   )
     public
+    noDuplicates(_revealerAddresses)
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
@@ -191,7 +197,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       encryptedFragments: splitIPFSHash(_encryptedFragmentsIPFSHash)
     });
 
-    // TODO: What if revealerAddresses have non-unique elements?
     for (uint256 i = 0; i < _revealerAddresses.length; i++) {
       messageToRevealerToHashOfFragments[_nonce][_revealerAddresses[i]] = _revealerHashOfFragments[i];
       messageToRevealerToRevealStatus[_nonce][_revealerAddresses[i]] = RevealStatus.NoShow;
@@ -199,13 +204,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
     messageToRevealers[_nonce] = _revealerAddresses;
 
-    // Transfer the staked KimonoCoins to the contract.
+    // Transfer the _timeLockReward KimonoCoins to the contract from the creator.
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
     require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), _timeLockReward));
 
     emit MessageCreation(_nonce, msg.sender, _encryptedFragmentsIPFSHash, _revealerAddresses);
   }
-
 
   function reserveStakes(address[] _revealerAddresses, uint256 _nonce) {
     for(uint256 i = 0; i < _revealerAddresses.length; i++) {
@@ -346,17 +350,17 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     external
     view
     returns (
-      address,
-      address,
-      uint8,
-      uint8,
-      uint40,
-      uint40,
-      uint256,
-      uint256,
-      uint256,
-      bytes,
-      bytes
+      address creator,
+      address secretConstructor,
+      uint8 minFragments,
+      uint8 totalFragments,
+      uint40 revealBlock,
+      uint40 revealPeriod,
+      uint256 revealSecret,
+      uint256 hashOfRevealSecret,
+      uint256 timeLockReward,
+      bytes encryptedMessage,
+      bytes encryptedFragments
     )
   {
     Message memory message = nonceToMessage[_nonce];
@@ -375,11 +379,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[]) {
+  function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[] nonces) {
     return revealerToMessages[_revealer];
   }
 
-  function getEligibleRevealersCount() external view returns(uint256) {
+  function getEligibleRevealersCount() external view returns(uint256 count) {
     return eligibleRevealers.length;
   }
 }

@@ -68,16 +68,26 @@ program
   .command("register:test")
   .description("Start N revealers for testing")
   .option("-N, --number <x>", "Number of revealers to launch", parseInt)
-  .action(async (options: { number: number }) => {
-    const revealers = getTestRevealers(options.number);
-    revealers.forEach(async revealer => {
-      revealer.register(new BN(10));
-    });
+  .option("-S, --stake <x>", "Total amount to stake", parseFloat, 100)
+  .option("-M, --min <x>", "Minimum message price", parseFloat, 1)
+  .option("-P, --per <x>", "Amount to stake per message", parseFloat, 5)
+  .action(
+    async (options: {
+      number: number;
+      stake: number;
+      min: number;
+      per: number;
+    }) => {
+      const revealers = getTestRevealers(options.number);
+      revealers.forEach(async revealer => {
+        revealer.register(options.stake, options.min, options.per);
+      });
 
-    process.on("SIGINT", async () => {
-      await Promise.all(revealers.map(revealer => revealer.exit()));
-      process.exit();
-    });
-  });
+      process.on("SIGINT", async () => {
+        await Promise.all(revealers.map(revealer => revealer.exit()));
+        process.exit();
+      });
+    }
+  );
 
 program.parse(process.argv);

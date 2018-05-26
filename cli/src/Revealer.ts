@@ -7,6 +7,7 @@ import kimono from "../../contracts/build/contracts/Kimono.json";
 import kimonoCoin from "../../contracts/build/contracts/KimonoCoin.json";
 import { IProvider } from "ethjs-shared";
 import createProvider from "./util/createProvider";
+import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
 
 // import * as crypto from "./util/crypto";
@@ -80,7 +81,11 @@ export default class Revealer {
     this.isSetup = true;
   }
 
-  async register(stakeAmount: BN) {
+  async register(
+    totalStake: number,
+    minMessagePrice: number,
+    stakePerMessage: number
+  ) {
     if (!this.isSetup) await this.setup();
 
     const revealer = await this.contract.revealerTable(this.address);
@@ -96,9 +101,9 @@ export default class Revealer {
     console.log("Registering Kimono Revealer with address ", this.address);
     await this.contract.registerRevealer(
       crypto.bytesToHex(this.publicKey),
-      new BN(10),
-      new BN(20),
-      new BN(1000),
+      new BN(Unit.toWei(minMessagePrice, "ether")),
+      new BN(Unit.toWei(stakePerMessage, "ether")),
+      new BN(Unit.toWei(totalStake, "ether")),
       {
         from: this.address,
         gas: GAS_LIMIT
