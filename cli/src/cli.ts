@@ -32,7 +32,7 @@ program
 program
   .command("reveal:test")
   .description("Start N revealers for testing")
-  .option("-N --number", "Number of revealers to launch", parseInt)
+  .option("-N, --number <x>", "Number of revealers to launch", parseInt)
   .action(async (options: { number: number }) => {
     const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
     const number = options.number || privateKeys.length;
