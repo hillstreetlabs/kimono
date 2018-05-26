@@ -2,7 +2,6 @@ pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 import "./AddressArrayUtils.sol";
 import "./IPFSWrapper.sol";
 import "./KimonoCoin.sol";
@@ -87,6 +86,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   // MODIFIERS
 
+  modifier afterRevealPeriodStart(uint256 _nonce) {
+    require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
+    _;
+  }
+
   modifier messageExists(uint256 _nonce) {
     require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
     _;
@@ -94,6 +98,14 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   modifier noDuplicates(address[] addresses) {
     require(!addresses.hasDuplicate());
+    _;
+  }
+
+  modifier withValidFragment(uint256 _nonce, uint256 _fragment, address revealer) {
+    require(
+      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) != keccak256(_fragment),
+      "Revealer submitted an invalid fragment."
+    );
     _;
   }
 
@@ -148,7 +160,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
   }
 
-  function getReservedAmount(address _revealer) public returns (uint256) {
+  function getReservedAmount(address _revealer) public view returns (uint256) {
     uint256 reservedAmount = 0;
     for(uint256 i = 0; i < revealerToMessages[_revealer].length; i++) {
       uint256 nonce = revealerToMessages[_revealer][i];
@@ -211,7 +223,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit MessageCreation(_nonce, msg.sender, _encryptedFragmentsIPFSHash, _revealerAddresses);
   }
 
-  function reserveStakes(address[] _revealerAddresses, uint256 _nonce) {
+  function reserveStakes(address[] _revealerAddresses, uint256 _nonce) public {
     for(uint256 i = 0; i < _revealerAddresses.length; i++) {
       address revealerAddress = _revealerAddresses[i];
       Revealer storage revealer = revealerTable[revealerAddress];
@@ -230,8 +242,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     public
     nonReentrant
     messageExists(_nonce)
+    afterRevealPeriodStart(_nonce)
+    withValidFragment(_nonce, _fragment, msg.sender)
   {
-    require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
       uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
       "Reveal period is over."
@@ -239,10 +252,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     require(
       messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
       "Message sender is not part of the revealers."
-    );
-    require(
-      bytes32(messageToRevealerToHashOfFragments[_nonce][msg.sender]) != keccak256(_fragment),
-      "Revealer submitted an invalid fragment."
     );
 
     messageToRevealerToHashOfFragments[_nonce][msg.sender] = uint256(0);
@@ -260,9 +269,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit FragmentReveal(_nonce, msg.sender, _fragment, message.minFragments, message.onTimeRevealerCount);
   }
 
-  function submitRevealSecret(uint256 _nonce, uint256 _secret) public messageExists(_nonce) {
-    require(nonceToMessage[_nonce].secretConstructor == address(0), "Message is already revealed.");
-    require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
+  function submitRevealSecret(uint256 _nonce, uint256 _secret)
+    public
+    messageExists(_nonce)
+    afterRevealPeriodStart(_nonce)
+  {
+    require(nonceToMessage[_nonce].secretConstructor == address(0), "Message secret is already revealed.");
     require(
       bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != keccak256(_secret),
       "Revealer submitted an invalid secret."
@@ -328,13 +340,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
   }
 
-  function tattle(address _tattlee, uint256 _nonce, uint256 _fragment) public {
-    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+  function tattle(uint256 _nonce, uint256 _fragment, address _tattlee)
+    public
+    messageExists(_nonce)
+    withValidFragment(_nonce, _fragment, _tattlee)
+  {
     require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period already started.");
-    require(
-      bytes32(messageToRevealerToHashOfFragments[_nonce][_tattlee]) != keccak256(_fragment),
-      "Revealer submitted an invalid fragment."
-    );
 
     uint256 balance = messageToRevealerToStake[_nonce][_tattlee];
     messageToRevealerToStake[_nonce][_tattlee] = 0;
@@ -343,7 +354,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
 
     require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
-    TattleTale(msg.sender, _tattlee);
+    emit TattleTale(msg.sender, _tattlee);
   }
 
   function getMessage(uint256 _nonce)

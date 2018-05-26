@@ -1,5 +1,6 @@
 pragma solidity ^0.4.23;
 
+
 library AddressArrayUtils {
 
   /// @return Returns index and isIn for the first occurrence starting from
@@ -29,7 +30,7 @@ library AddressArrayUtils {
    * Returns whether or not there's a duplicate
    * Runs in O(n^2)
    */
-  function hasDuplicate(address[] addresses) returns (bool) {
+  function hasDuplicate(address[] addresses) internal pure returns (bool) {
     for (uint256 i = 0; i < addresses.length - 1; i++) {
       for (uint256 j = i + 1; j < addresses.length; j++) {
         if (addresses[i] == addresses[j]) {
