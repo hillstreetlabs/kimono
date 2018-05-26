@@ -191,6 +191,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
     require(_revealPeriod >= MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
     require(_minFragments >= 2, "The minimum number of fragments is 2");
+    require(_totalFragments == _revealerAddresses.length, "Incorrect number of fragments");
+    require(_totalFragments == _revealerHashOfFragments.length, "Incorrect number of fragments");
 
     reserveStakes(_revealerAddresses, _nonce);
 
