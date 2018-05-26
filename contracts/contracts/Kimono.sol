@@ -169,8 +169,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     uint256 index;
     bool isIn;
-    // TODO: update index implementation to search from the end, for revealer
-    // that advertises frequently
     (index, isIn) = eligibleRevealers.indexOf(_revealerAddress);
     if (totalStakes[_revealerAddress].sub(_reservedAmount) >= _stakePerMessage) {
       if (!isIn) {
@@ -206,7 +204,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedFragmentsIPFSHash
   )
     public
-    noDuplicates(_revealerAddresses) // TODO: Fix por favor
+    noDuplicates(_revealerAddresses)
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
@@ -264,7 +262,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function revealFragment(uint256 _nonce, uint256 _fragment)
     public
-    nonReentrant // TODO: Does this have to be non re-entrant?
     messageExists(_nonce)
     afterRevealPeriodStarts(_nonce)
     beforeRevealPeriodEnds(_nonce)

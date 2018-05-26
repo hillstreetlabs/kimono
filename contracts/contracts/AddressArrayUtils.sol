@@ -40,5 +40,4 @@ library AddressArrayUtils {
     }
     return false;
   }
-
 }
