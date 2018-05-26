@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 require("dotenv").config();
 
-import program = require("commander");
+import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
 
@@ -11,7 +11,10 @@ program
   .action(async () => {
     const revealer = new Revealer(process.env.PRIVATE_KEY);
     revealer.start();
-    process.on("SIGINT", () => revealer.exit());
+    process.on("SIGINT", async () => {
+      await revealer.exit();
+      process.exit();
+    });
   });
 
 program
@@ -20,7 +23,10 @@ program
   .action(async () => {
     const combiner = new Combiner(process.env.PRIVATE_KEY);
     combiner.start();
-    process.on("SIGINT", () => combiner.exit());
+    process.on("SIGINT", async () => {
+      await combiner.exit();
+      process.exit();
+    });
   });
 
 program
@@ -38,10 +44,9 @@ program
       revealer.start();
     });
 
-    process.on("SIGINT", () => {
-      revealers.forEach(revealer => {
-        revealer.exit();
-      });
+    process.on("SIGINT", async () => {
+      await Promise.all(revealers.map(revealer => revealer.exit()));
+      process.exit();
     });
   });
 
