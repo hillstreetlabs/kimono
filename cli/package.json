@@ -15,6 +15,7 @@
     "clui": "^0.3.6",
     "commander": "^2.15.1",
     "dotenv": "^5.0.1",
+    "ethjs-abi": "^0.2.1",
     "ethjs-account": "^0.1.4",
     "ethjs-contract": "^0.2.3",
     "ethjs-provider-signer": "^0.1.4",

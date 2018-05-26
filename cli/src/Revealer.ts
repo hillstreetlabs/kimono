@@ -9,6 +9,7 @@ import { IProvider } from "ethjs-shared";
 import createProvider from "./util/createProvider";
 import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
+import { eventsFromBlock } from "./util/events";
 
 // import * as crypto from "./util/crypto";
 
@@ -32,6 +33,7 @@ async function getContract<T>(eth: Eth, contractObj: any) {
 
 interface KimonoContract {
   address: string;
+  abi: any[];
   revealerTable: (address: string) => { publicKey: string };
   registerRevealer: (
     publicKey: string,
@@ -127,8 +129,10 @@ export default class Revealer {
     // Return
   }
 
-  onAddBlock(block: Block) {
-    console.log("Added block", block.hash);
+  async onAddBlock(rawBlock: Block) {
+    const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
+    const events = await eventsFromBlock(this.eth, this.contract, block);
+    console.log("Got events", events);
   }
 
   onConfirmBlock(block: Block) {
