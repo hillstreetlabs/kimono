@@ -60,7 +60,7 @@ function concat(array1: Uint8Array, array2: Uint8Array) {
   return newArray;
 }
 
-function sha256(bytes: Uint8Array) {
+export function sha3(bytes: Uint8Array) {
   return new Uint8Array(keccak256.update(bytes).arrayBuffer());
 }
 
@@ -72,7 +72,7 @@ export function buildMessageSecret(
   nonce: Uint8Array,
   dealerSecret: Uint8Array
 ) {
-  return sha256(concat(nonce, dealerSecret));
+  return sha3(concat(nonce, dealerSecret));
 }
 
 export function encryptMessage(
