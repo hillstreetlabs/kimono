@@ -15,7 +15,7 @@ library AddressArrayUtils {
 
   /// Deletes address at index and fills the spot with the last address
   /// @return Returns the new array length
-  function remove(address[] storage addresses, uint256 index) internal returns(uint256) {
+  function remove(address[] storage addresses, uint256 index) internal returns (uint256) {
     if (index >= addresses.length) {
       return addresses.length;
     }
@@ -23,6 +23,21 @@ library AddressArrayUtils {
     delete addresses[addresses.length - 1];
     addresses.length--;
     return addresses.length;
+  }
+
+  /**
+   * Returns whether or not there's a duplicate
+   * Runs in O(n^2)
+   */
+  function hasDuplicate(address[] addresses) returns (bool) {
+    for (uint256 i = 0; i < addresses.length - 1; i++) {
+      for (uint256 j = i + 1; j < addresses.length; j++) {
+        if (addresses[i] == addresses[j]) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
 }

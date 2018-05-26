@@ -85,6 +85,14 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   }
 
+  // MODIFIERS
+
+  modifier noDuplicates(address[] addresses) {
+    require(!addresses.hasDuplicate());
+    _;
+  }
+
+
   // PUBLIC FUNCTIONS
 
   function registerRevealer(
@@ -158,7 +166,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedMessageIPFSHash,
     bytes _encryptedFragmentsIPFSHash
   )
-    public
+    public noDuplicates(_revealerAddresses)
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
@@ -184,7 +192,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       encryptedFragments: splitIPFSHash(_encryptedFragmentsIPFSHash)
     });
 
-    // TODO: What if revealerAddresses have non-unique elements?
     for (uint256 i = 0; i < _revealerAddresses.length; i++) {
       messageToRevealerToHashOfFragments[_nonce][_revealerAddresses[i]] = _revealerHashOfFragments[i];
       messageToRevealerToRevealStatus[_nonce][_revealerAddresses[i]] = RevealStatus.NoShow;
