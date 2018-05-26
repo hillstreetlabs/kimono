@@ -63,6 +63,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
+  event TattleTail(address tattler, address tattlee);
 
   // nonce => revealerAddress => balance
 
@@ -324,6 +325,31 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, amount));
       emit StakeWithdrawal(msg.sender, amount);
     }
+  }
+
+  function tattle(address _tattlee, uint256 _nonce, uint256 _fragment) public {
+    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+    require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period already started.");
+
+    // TODO: Should anyone be able to do this or just the revealers of the message?
+
+    require(
+      messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
+      "Message sender is not part of the revealers."
+    );
+    require(
+      bytes32(messageToRevealerToHashOfFragments[_nonce][_tattlee]) != keccak256(_fragment),
+      "Revealer submitted an invalid fragment."
+    );
+
+    uint256 balance = messageToRevealerToStake[_nonce][_tattlee];
+    messageToRevealerToStake[_nonce][_tattlee] = 0;
+    messageToRevealerToStake[_nonce][msg.sender].add(balance);
+
+    messageToRevealerToHashOfFragments[_nonce][_tattlee] = uint256(0);
+    messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
+
+    TattleTail(msg.sender, _tattlee);
   }
 
   function getMessage(uint256 _nonce)
