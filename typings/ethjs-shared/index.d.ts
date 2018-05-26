@@ -56,4 +56,8 @@ declare module "ethjs-shared" {
     data: string;
     topics: Array<string>;
   }
+
+  export interface IProvider {
+    accounts: string[];
+  }
 }
