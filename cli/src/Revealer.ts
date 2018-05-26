@@ -50,6 +50,10 @@ export default class Revealer {
     await this.ethstream.stop();
   }
 
+  getAllMessages() {
+    // Return
+  }
+
   onAddBlock(block: Block) {
     console.log("Added block", block.hash);
   }
