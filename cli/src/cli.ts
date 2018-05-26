@@ -4,8 +4,10 @@ require("dotenv").config();
 import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
+import Eth from "ethjs-query";
 import BN from "bn.js";
 import createProvider from "./util/createProvider";
+import advanceBlock from "./util/advanceBlock";
 
 program
   .command("reveal")
@@ -34,6 +36,26 @@ program
     combiner.start();
     process.on("SIGINT", async () => {
       await combiner.exit();
+      process.exit();
+    });
+  });
+
+program
+  .command("advanceBlock")
+  .description("Adds a block every N milliseconds")
+  .option("-N, --number <x>", "Number of milliseconds between blocks", parseInt)
+  .action(async (options: { number: number }) => {
+    const provider = createProvider(
+      process.env.PRIVATE_KEY,
+      process.env.JSON_RPC_URL
+    );
+
+    let interval = setInterval(
+      () => advanceBlock(provider),
+      options.number || 10000
+    );
+    process.on("SIGINT", () => {
+      clearInterval(interval);
       process.exit();
     });
   });
