@@ -1,3 +1,7 @@
 declare module "ethjs-provider-http" {
-  export default class EthjsHttpProvider {}
+  class HttpProvider {
+    constructor(address: string, options?: any);
+  }
+
+  export = HttpProvider;
 }

@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "@types/node": "^10.1.2",
+    "babel-runtime": "^6.26.0",
     "clui": "^0.3.6",
     "commander": "^2.15.1",
     "dotenv": "^5.0.1",
