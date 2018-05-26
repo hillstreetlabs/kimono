@@ -1,5 +1,7 @@
 import { action, observable, computed } from "mobx";
-import abi from "ethjs-abi";
+import { Kimono } from "../../contracts";
+import EthContract from "ethjs-contract";
+import EthABI from "ethjs-abi";
 
 const REFRESH_NETWORK_VERSION_DELAY = 1000;
 
@@ -9,6 +11,7 @@ export default class Contracts {
 
   constructor(store) {
     this.store = store;
+    this.ethContract = new EthContract(this.store.eth);
     this.getNetworkVersion();
   }
 
@@ -30,10 +33,10 @@ export default class Contracts {
   @computed
   get kimono() {
     if (!this.networkVersion) return null;
-    // const address = (Marketplace.networks[this.networkVersion] || {}).address;
-    // if (!address) return null;
-    // const contract = this.store.eth.contract(Marketplace.abi).at(address);
-    // contract.decodeLogs = abi.logDecoder(contract.abi);
-    // return contract;
+    const address = (Kimono.networks[this.networkVersion] || {}).address;
+    if (!address) return null;
+    const contract = this.ethContract(Kimono.abi).at(address);
+    contract.decodeLogs = EthABI.logDecoder(contract.abi);
+    return contract;
   }
 }
