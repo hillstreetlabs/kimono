@@ -1,5 +1,6 @@
 const KimonoCoin = artifacts.require("KimonoCoin");
 const Kimono = artifacts.require("Kimono");
+const AddressArrayUtils = artifacts.require("AddressArrayUtils");
 
 RINKEBY_ACCOUNTS = [
   "0x8aa4b7c4B26a923cFA86251BE9Acfc834463D85E",
@@ -28,6 +29,14 @@ module.exports = function(deployer, network, accounts) {
         const amount = new web3.BigNumber(web3.toWei(1000, "ether"));
         return token.distributeTokensForTesting(testAccounts, amount);
       }
+    })
+    .then(() => {
+      console.log("Deploying the AddressArrayUtils...");
+      return deployer.deploy(AddressArrayUtils);
+    })
+    .then(() => {
+      console.log("Linking the AddressArrayUtils..");
+      return deployer.link(AddressArrayUtils, [Kimono]);
     })
     .then(() => {
       console.log("Deploying the Kimono protocol...");

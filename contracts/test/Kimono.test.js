@@ -4,10 +4,11 @@ const BigNumber = web3.BigNumber;
 
 
 const BASE_UNIT = 10**18;
+const MAX_UINT256 = new BigNumber('115792089237316195423570985008687907853269984665640564039457584007913129639935');
 
 contract('Kimono', function(accounts) {
 
-  context('Advertise', function() {
+  context('Basic tests', function() {
     let kimonoCoin;
     let kimono;
     let [owner, revealer1] = accounts;
@@ -18,19 +19,65 @@ contract('Kimono', function(accounts) {
       kimono = await Kimono.deployed();
     });
 
-    it('should correctly advertise', async function() {
+    it('should correctly register new revealer', async function() {
       let publicKey = 'asdfadsf';
-      let minReward = 5 * BASE_UNIT;
-      let stakeAmount = 50 * BASE_UNIT;
+      let minReward = web3.toWei(1);
+      let stakeOffer = web3.toWei(5);
+      let totalStake = web3.toWei(50);
 
-      await kimono.advertise(publicKey, minReward, stakeAmount, { from: revealer1 });
+      await kimonoCoin.approve(kimono.address, MAX_UINT256, { from: revealer1 });
 
-      let revealersCount = await kimono.getRevealersCount.call();
-      let [storedPublicKey, storedMinReward, storedStakeAmount] = await kimono.revealerTable.call(revealer1);
+      await kimono.registerRevealer(publicKey, minReward, stakeOffer, totalStake, { from: revealer1 });
 
-      assert.equal(revealersCount, 1, 'revealersCount is correct');
+      let eligibleRevealersCount = await kimono.getEligibleRevealersCount.call();
+      let [storedPublicKey, storedMinReward, storedStakeOffer] = await kimono.revealerTable.call(revealer1);
+      let storedTotalStake = await kimono.totalStakes.call(revealer1);
+
+      assert.equal(eligibleRevealersCount, 1, 'eligibleRevealersCount is correct');
+      // TODO: check public key
       assert.equal(storedMinReward.toNumber(), minReward, 'stored minReward is correct');
-      assert.equal(storedStakeAmount.toNumber(), stakeAmount, 'stored stakeAmount is correct');
+      assert.equal(storedStakeOffer.toNumber(), stakeOffer, 'stored stakeOffer is correct');
+      assert.equal(storedTotalStake.toNumber(), totalStake, 'stored totalStake is correct');
+    });
+
+    it('should correctly update revealer registration with more stake', async function() {
+      let publicKey = 'asdfadsf';
+      let minReward = web3.toWei(1);
+      let stakeOffer = web3.toWei(5);
+      let totalStake = web3.toWei(50);
+
+      await kimonoCoin.approve(kimono.address, MAX_UINT256, { from: revealer1 });
+      await kimono.registerRevealer(publicKey, minReward, stakeOffer, totalStake, { from: revealer1 });
+
+      let eligibleRevealersCount = await kimono.getEligibleRevealersCount.call();
+      let [storedPublicKey, storedMinReward, storedStakeOffer] = await kimono.revealerTable.call(revealer1);
+      let storedTotalStake = await kimono.totalStakes.call(revealer1);
+
+      assert.equal(eligibleRevealersCount, 1, 'eligibleRevealersCount is correct');
+      // TODO: check public key
+      assert.equal(storedMinReward.toNumber(), minReward, 'stored minReward is correct');
+      assert.equal(storedStakeOffer.toNumber(), stakeOffer, 'stored stakeOffer is correct');
+      assert.equal(storedTotalStake.toNumber(), totalStake, 'stored totalStake is correct');
+
+      // Update
+      publicKey = 'asdfadsf';
+      minReward = web3.toWei(1);
+      stakeOffer = web3.toWei(5);
+      totalStake = web3.toWei(100);
+      await kimono.registerRevealer(
+        publicKey,
+        minReward,
+        stakeOffer,
+        totalStake,
+        { from: revealer1 }
+      );
+      eligibleRevealersCount = await kimono.getEligibleRevealersCount.call();
+      [storedPublicKey, storedMinReward, storedStakeOffer] = await kimono.revealerTable.call(revealer1);
+      storedTotalStake = await kimono.totalStakes.call(revealer1);
+      assert.equal(eligibleRevealersCount, 1, 'eligibleRevealersCount is correct');
+      assert.equal(storedMinReward.toNumber(), minReward, 'stored minReward is correct');
+      assert.equal(storedStakeOffer.toNumber(), stakeOffer, 'stored stakeOffer is correct');
+      assert.equal(storedTotalStake.toNumber(), totalStake, 'stored totalStake is correct');
     });
 
   });

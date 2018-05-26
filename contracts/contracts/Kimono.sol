@@ -1,14 +1,17 @@
 pragma solidity ^0.4.23;
 
+import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+
+import "./AddressArrayUtils.sol";
 import "./IPFSWrapper.sol";
 import "./KimonoCoin.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 
 
 contract Kimono is IPFSWrapper, ReentrancyGuard {
   using SafeMath for uint256;
+  using AddressArrayUtils for address[];
 
   struct Message {
     address creator; // Address of the creator of the message
@@ -26,7 +29,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   struct Revealer {
     bytes32 publicKey;
     uint256 minReward;
-    uint256 stakeAmount;
+    uint256 stakeOffer;
   }
 
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
@@ -34,7 +37,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToFragments; // Addresses to decrypted fragments
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments; // Addresses to hash of fragments, used for verification
   mapping(address => Revealer) public revealerTable;
-  address[] public revealers;
+  mapping(address => uint256) public totalStakes;
+  mapping(address => uint256[]) revealerToJobs;
+  // Or should it be revealer => job => stake?
+  mapping(uint256 => mapping(address => uint256)) jobToRevealerToStake;
+
+  address[] public eligibleRevealers;
   address public kimonoCoinAddress;
 
   // EVENTS
@@ -49,10 +57,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
 
   // nonce => revealerAddress => balance
-  mapping(uint256 => mapping(address => uint256)) balances;
 
   // CONSTRUCTOR
-
   constructor (address _kimonoCoinAddress) public {
     kimonoCoinAddress = _kimonoCoinAddress;
     KimonoCoin(kimonoCoinAddress).approveAll(address(this));
@@ -67,18 +73,55 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   // PUBLIC FUNCTIONS
 
-  function advertise(
+  function registerRevealer(
     bytes32 _publicKey,
     uint256 _minReward,
-    uint256 _stakeAmount
+    uint256 _stakeOffer,
+    uint256 _totalStake
   ) public nonReentrant {
     Revealer memory revealer = Revealer({
       publicKey: _publicKey,
       minReward: _minReward,
-      stakeAmount: _stakeAmount
+      stakeOffer: _stakeOffer
     });
+    uint256 reservedAmount = getReservedAmount(msg.sender);
+    require(_totalStake >= reservedAmount);
+
+    uint256 oldTotalStake = totalStakes[msg.sender];
+    if (_totalStake == oldTotalStake) {
+    } else if (_totalStake > oldTotalStake) {
+      uint256 additionalStakeAmount = _totalStake.sub(oldTotalStake);
+      require(ERC20(kimonoCoinAddress).transferFrom(msg.sender, address(this), additionalStakeAmount));
+    } else {
+      uint256 refundAmount = oldTotalStake.sub(_totalStake);
+      require(ERC20(kimonoCoinAddress).transfer(msg.sender, refundAmount));
+    }
+    totalStakes[msg.sender] = _totalStake;
     revealerTable[msg.sender] = revealer;
-    revealers.push(msg.sender);
+
+    uint256 index;
+    bool isIn;
+    // TODO: update index implementation to search from the end, for revealer
+    // that advertises frequently
+    (index, isIn) = eligibleRevealers.indexOf(msg.sender);
+    if (totalStakes[msg.sender].sub(reservedAmount) >= _stakeOffer) {
+      if (!isIn) {
+        eligibleRevealers.push(msg.sender);
+      }
+    } else {
+      if (isIn) {
+        eligibleRevealers.remove(index);
+      }
+    }
+  }
+
+  function getReservedAmount(address _revealer) returns (uint256) {
+    uint256 reservedAmount = 0;
+    for(uint256 i = 0; i < revealerToJobs[_revealer].length; i++) {
+      uint256 job = revealerToJobs[_revealer][i];
+      reservedAmount = reservedAmount.add(jobToRevealerToStake[job][_revealer]);
+    }
+    return reservedAmount;
   }
 
   function proposeAndCreate(
@@ -112,11 +155,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   }
 
   function propose(uint256 _nonce, address[] _selectedRevealers) internal {
-    for(uint256 i = 0; i < _selectedRevealers.length; i++) {
-      Revealer storage revealer = revealerTable[_selectedRevealers[i]];
-      require(ERC20(kimonoCoinAddress).transferFrom(msg.sender, address(this), revealer.stakeAmount));
-      balances[_nonce][msg.sender] = balances[_nonce][msg.sender].add(revealer.stakeAmount);
-    }
   }
 
   function cancel() public {
@@ -260,11 +298,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   }
 
-  function getRevealersCount() external view returns(uint256) {
-    return revealers.length;
+  function getEligibleRevealersCount() external view returns(uint256) {
+    return eligibleRevealers.length;
   }
 
-  function getEligibleRevealers() external view returns(uint256) {
-  }
 
 }
