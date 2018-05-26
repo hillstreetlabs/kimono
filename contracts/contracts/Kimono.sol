@@ -1,13 +1,16 @@
 pragma solidity ^0.4.23;
 
+import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
+import "./AddressArrayUtils.sol";
 import "./IPFSWrapper.sol";
 import "./KimonoCoin.sol";
 
 
 contract Kimono is IPFSWrapper, ReentrancyGuard {
   using SafeMath for uint256;
+  using AddressArrayUtils for address[];
 
   enum RevealStatus { OnTime, Late, NoShow }
 
@@ -20,6 +23,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     address secretConstructor; // Address of the constructor of the secret
     bool creatorWithdrewStake;
     bool secretConstructorWithdrewStake;
+    uint8 onTimeRevealerCount;
     uint256 revealSecret; // Secret that'll be used to decrypt the message
     uint256 hashOfRevealSecret; // Hash of the revealSecret, submitted by the user and used for verification
     uint256 timeLockReward; // Time lock reward staked by the creator of the message
@@ -30,17 +34,22 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   struct Revealer {
     bytes32 publicKey;
     uint256 minReward;
-    uint256 stakeAmount;
+    uint256 stakePerMessage;
   }
 
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
   mapping (uint256 => Message) public nonceToMessage;
   mapping (address => uint256[]) public revealerToMessages;
+  mapping (uint256 => address[]) public messageToRevealers;
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToFragments; // Addresses to decrypted fragments
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments; // Addresses to hash of fragments, used for verification
   mapping (uint256 => mapping(address => RevealStatus)) public messageToRevealerToRevealStatus;
   mapping(address => Revealer) public revealerTable;
-  address[] public revealers;
+  mapping(address => uint256) public totalStakes;
+  mapping(address => uint256[]) revealerToJobs;
+  mapping(uint256 => mapping(address => uint256)) jobToRevealerToStake;
+
+  address[] public eligibleRevealers;
   address public kimonoCoinAddress;
 
   // EVENTS
@@ -55,11 +64,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
 
-  // messageHash => revealerAddress => balance
-  mapping(bytes32 => mapping(address => uint256)) balances;
+  // nonce => revealerAddress => balance
 
   // CONSTRUCTOR
-
   constructor (address _kimonoCoinAddress) public {
     kimonoCoinAddress = _kimonoCoinAddress;
     KimonoCoin(kimonoCoinAddress).approveAll(address(this));
@@ -74,20 +81,58 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   // PUBLIC FUNCTIONS
 
-  function advertise(bytes32 _publicKey, uint256 _minReward, uint256 _stakeAmount)
-    public
-    nonReentrant
-  {
+  function registerRevealer(
+    bytes32 _publicKey,
+    uint256 _minReward,
+    uint256 _stakePerMessage,
+    uint256 _totalStake
+  ) public nonReentrant {
     // TODO: Can revealer update every single param they have?
     // If not, add a check to make sure msg.sender doesn't exist.
 
     Revealer memory revealer = Revealer({
       publicKey: _publicKey,
       minReward: _minReward,
-      stakeAmount: _stakeAmount
+      stakePerMessage: _stakePerMessage
     });
+    uint256 reservedAmount = getReservedAmount(msg.sender);
+    require(_totalStake >= reservedAmount);
+
+    uint256 oldTotalStake = totalStakes[msg.sender];
+    if (_totalStake == oldTotalStake) {
+    } else if (_totalStake > oldTotalStake) {
+      uint256 additionalStakeAmount = _totalStake.sub(oldTotalStake);
+      require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), additionalStakeAmount));
+    } else {
+      uint256 refundAmount = oldTotalStake.sub(_totalStake);
+      require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, refundAmount));
+    }
+    totalStakes[msg.sender] = _totalStake;
     revealerTable[msg.sender] = revealer;
-    revealers.push(msg.sender);
+
+    uint256 index;
+    bool isIn;
+    // TODO: update index implementation to search from the end, for revealer
+    // that advertises frequently
+    (index, isIn) = eligibleRevealers.indexOf(msg.sender);
+    if (totalStakes[msg.sender].sub(reservedAmount) >= _stakePerMessage) {
+      if (!isIn) {
+        eligibleRevealers.push(msg.sender);
+      }
+    } else {
+      if (isIn) {
+        eligibleRevealers.remove(index);
+      }
+    }
+  }
+
+  function getReservedAmount(address _revealer) returns (uint256) {
+    uint256 reservedAmount = 0;
+    for(uint256 i = 0; i < revealerToJobs[_revealer].length; i++) {
+      uint256 job = revealerToJobs[_revealer][i];
+      reservedAmount = reservedAmount.add(jobToRevealerToStake[job][_revealer]);
+    }
+    return reservedAmount;
   }
 
   function proposeAndCreate(
@@ -106,20 +151,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   )
     public
   {
-    bytes32 messageHash = keccak256(
-      _nonce,
-      _minFragments,
-      _totalFragments,
-      _revealBlock,
-      _revealPeriod,
-      _hashOfRevealSecret,
-      _timeLockReward,
-      _revealerAddresses,
-      _revealerHashOfFragments,
-      _encryptedMessageIPFSHash,
-      _encryptedFragmentsIPFSHash
-    );
-    propose(messageHash, _selectedRevealers);
+    propose(_nonce, _selectedRevealers);
     createMessage(
       _nonce,
       _minFragments,
@@ -135,12 +167,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function propose(bytes32 messageHash, address[] _selectedRevealers) internal {
-    for(uint256 i = 0; i < _selectedRevealers.length; i++) {
-      Revealer storage revealer = revealerTable[_selectedRevealers[i]];
-      require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), revealer.stakeAmount));
-      balances[messageHash][msg.sender] = balances[messageHash][msg.sender].add(revealer.stakeAmount);
-    }
+  function propose(uint256 _nonce, address[] _selectedRevealers) internal {
   }
 
   function cancel() public {
@@ -169,8 +196,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     nonceToMessage[_nonce] = Message({
       creator: msg.sender,
       secretConstructor: address(0),
+      creatorWithdrewStake: false,
+      secretConstructorWithdrewStake: false,
       minFragments: _minFragments,
       totalFragments: _totalFragments,
+      onTimeRevealerCount: 0,
       revealBlock: _revealBlock,
       revealPeriod: _revealPeriod,
       revealSecret: uint256(0),
@@ -186,6 +216,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       messageToRevealerToRevealStatus[_nonce][_revealerAddresses[i]] = RevealStatus.NoShow;
       revealerToMessages[_revealerAddresses[i]].push(_nonce);
     }
+    messageToRevealers[_nonce] = _revealerAddresses;
 
     // Transfer the staked KimonoCoins to the contract.
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
@@ -213,9 +244,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     messageToRevealerToHashOfFragments[_nonce][msg.sender] = uint256(0);
     messageToRevealerToFragments[_nonce][msg.sender] = _fragment;
 
-    // Message is note revealed
+    // Message is not revealed
     if (nonceToMessage[_nonce].secretConstructor == address(0)) {
       messageToRevealerToRevealStatus[_nonce][msg.sender] = RevealStatus.OnTime;
+      Message storage message = nonceToMessage[_nonce];
+      message.onTimeRevealerCount += 1;
     } else {
       messageToRevealerToRevealStatus[_nonce][msg.sender] = RevealStatus.Late;
     }
@@ -245,32 +278,41 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       "Reveal period is not over."
     );
 
-    Memory storage message = nonceToMessage[_nonce];
+    Message storage message = nonceToMessage[_nonce];
     uint256 amount;
-    uint256 rewardShare;
+    uint256 oldBalance;
+
+    // TODO: If jobToRevealerToStake is updated, should the totalStake be updated as well?
 
     // Creator
     if (msg.sender == message.creator && !message.creatorWithdrewStake) {
       message.creatorWithdrewStake = true;
-      amount.add();
+      for (uint256 i = 0; i < messageToRevealers[_nonce].length; i++) {
+        address revealer = messageToRevealers[_nonce][i];
+        if (messageToRevealerToRevealStatus[_nonce][revealer] == RevealStatus.NoShow) {
+          oldBalance = jobToRevealerToStake[_nonce][revealer];
+          jobToRevealerToStake[_nonce][revealer] = 0;
+          amount.add(oldBalance);
+        }
+      }
     }
 
     // Secret constructor
     if (msg.sender == message.secretConstructor && !message.secretConstructorWithdrewStake) {
       message.secretConstructorWithdrewStake = true;
-      amount.add(rewardShare);
+      amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
     }
 
     // Revealer showed up, so return stake
     if (messageToRevealerToRevealStatus[_nonce][msg.sender] != RevealStatus.NoShow) {
-      uint256 oldBalance = balances[_nonce][msg.sender];
+      oldBalance = jobToRevealerToStake[_nonce][msg.sender];
       if (oldBalance > 0) {
-        balances[_nonce][msg.sender] = 0;
+        jobToRevealerToStake[_nonce][msg.sender] = 0;
         amount.add(oldBalance);
 
         // Revealer was on time, so also give the reward
         if (messageToRevealerToRevealStatus[_nonce][msg.sender] == RevealStatus.OnTime) {
-          amount.add(rewardShare);
+          amount.add(message.timeLockReward.div(uint256(message.onTimeRevealerCount + 1)));
         }
       }
     }
@@ -316,5 +358,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[]) {
     return revealerToMessages[_revealer];
+  }
+
+  function getEligibleRevealersCount() external view returns(uint256) {
+    return eligibleRevealers.length;
   }
 }

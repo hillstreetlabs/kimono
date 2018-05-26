@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { injectGlobal } from "emotion";
-import Root from "./Root";
+import Store from "./store";
+import Root from "./components/Root";
 import "whatwg-fetch";
 
 injectGlobal`
@@ -42,13 +43,15 @@ injectGlobal`
 `;
 
 let rootElement = document.getElementById("app");
+let store = new Store();
+window.store = store;
 
 window.onload = () => {
-  ReactDOM.render(<Root />, rootElement);
+  ReactDOM.render(<Root store={store} />, rootElement);
 };
 
 if (module.hot) {
-  module.hot.accept("./Root", () => {
-    ReactDOM.render(<Root />, rootElement);
+  module.hot.accept("./components/Root", () => {
+    ReactDOM.render(<Root store={store} />, rootElement);
   });
 }
