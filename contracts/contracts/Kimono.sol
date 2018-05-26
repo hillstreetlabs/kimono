@@ -396,6 +396,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     external
     view
     returns (
+      uint256 nonce,
       address creator,
       address secretConstructor,
       uint8 minFragments,
@@ -411,6 +412,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     Message memory message = nonceToMessage[_nonce];
     return (
+      _nonce,
       message.creator,
       message.secretConstructor,
       message.minFragments,
