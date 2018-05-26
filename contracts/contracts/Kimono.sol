@@ -60,7 +60,13 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes encryptedFragmentsIPFSHash,
     address[] revealerAddresses
   );
-  event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
+  event FragmentReveal(
+    uint256 nonce,
+    address revealer,
+    uint256 fragment,
+    uint8 minFragments,
+    uint8 onTimeRevealerCount
+  );
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
   event TattleTail(address tattler, address tattlee);
@@ -254,7 +260,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       messageToRevealerToRevealStatus[_nonce][msg.sender] = RevealStatus.Late;
     }
 
-    emit FragmentReveal(_nonce, msg.sender, _fragment);
+    emit FragmentReveal(_nonce, msg.sender, _fragment, message.minFragments, message.onTimeRevealerCount);
   }
 
   function submitRevealSecret(uint256 _nonce, uint256 _secret) public {
@@ -330,13 +336,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   function tattle(address _tattlee, uint256 _nonce, uint256 _fragment) public {
     require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
     require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period already started.");
-
-    // TODO: Should anyone be able to do this or just the revealers of the message?
-
-    require(
-      messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
-      "Message sender is not part of the revealers."
-    );
     require(
       bytes32(messageToRevealerToHashOfFragments[_nonce][_tattlee]) != keccak256(_fragment),
       "Revealer submitted an invalid fragment."
@@ -344,11 +343,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
     uint256 balance = messageToRevealerToStake[_nonce][_tattlee];
     messageToRevealerToStake[_nonce][_tattlee] = 0;
-    messageToRevealerToStake[_nonce][msg.sender].add(balance);
 
     messageToRevealerToHashOfFragments[_nonce][_tattlee] = uint256(0);
     messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
 
+    require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
     TattleTail(msg.sender, _tattlee);
   }
 
