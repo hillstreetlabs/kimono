@@ -65,7 +65,7 @@ program
   });
 
 program
-  .command("signup:test")
+  .command("register:test")
   .description("Start N revealers for testing")
   .option("-N, --number <x>", "Number of revealers to launch", parseInt)
   .action(async (options: { number: number }) => {
