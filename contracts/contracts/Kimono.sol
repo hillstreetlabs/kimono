@@ -87,7 +87,7 @@ contract Kimono is IPFSWrapper {
   {
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
     require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
-    // TODO: Add some form of validation for minFragments and totalFragments
+    require(_minFragments > 2, "The minimum number of fragments is 2");
 
     nonceToMessage[_nonce] = Message({
       creator: msg.sender,
@@ -188,5 +188,21 @@ contract Kimono is IPFSWrapper {
       combineIPFSHash(message.encryptedMessage),
       combineIPFSHash(message.encryptedFragments)
     );
+  }
+
+  function getWithdrawalAmountForCreator() internal {
+
+  }
+
+  function getWithdrawalAmountForRevealer() internal {
+
+  }
+
+  function getWithdrawalAmountForLateRevealer() internal {
+
+  }
+
+  function getWithdrawalAmountForNoShows() internal {
+
   }
 }
