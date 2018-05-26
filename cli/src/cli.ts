@@ -4,29 +4,17 @@ require("dotenv").config();
 import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
-import SignerProvider from "ethjs-provider-signer";
-import { sign } from "ethjs-signer";
-import { Transaction } from "ethjs-shared";
-import { privateToAccount } from "ethjs-account";
-
-function createProvider(privateKey: string, rpcUrl: string) {
-  return new SignerProvider(rpcUrl, {
-    signTransaction: (rawTx: Transaction, cb: (_: any, res: string) => void) =>
-      cb(null, sign(rawTx, privateKey)),
-    accounts: (cb: (_: any, keys: string[]) => void) =>
-      cb(null, [privateToAccount(privateKey).address])
-  });
-}
+import BN from "bn.js";
+import createProvider from "./util/createProvider";
 
 program
   .command("reveal")
   .description("Starts a revealer")
   .action(async () => {
-    const provider = createProvider(
+    const revealer = new Revealer(
       process.env.PRIVATE_KEY,
       process.env.JSON_RPC_URL
     );
-    const revealer = new Revealer(provider);
     revealer.start();
     process.on("SIGINT", async () => {
       await revealer.exit();
@@ -50,23 +38,40 @@ program
     });
   });
 
+function getTestRevealers(number?: number) {
+  const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+  number = number || privateKeys.length;
+  const revealers: Revealer[] = new Array(number)
+    .fill(0)
+    .map((_, i) => new Revealer(privateKeys[i], process.env.TEST_JSON_RPC_URL));
+  return revealers;
+}
+
 program
   .command("reveal:test")
   .description("Start N revealers for testing")
   .option("-N, --number <x>", "Number of revealers to launch", parseInt)
   .action(async (options: { number: number }) => {
-    const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
-    const number = options.number || privateKeys.length;
-    const revealers: Revealer[] = new Array(number).fill(0).map((_, i) => {
-      const provider = createProvider(
-        privateKeys[i],
-        process.env.TEST_JSON_RPC_URL
-      );
-      return new Revealer(provider);
+    const revealers = getTestRevealers(options.number);
+
+    revealers.forEach(async revealer => {
+      revealer.start();
     });
 
-    revealers.forEach(revealer => {
-      revealer.start();
+    process.on("SIGINT", async () => {
+      await Promise.all(revealers.map(revealer => revealer.exit()));
+      process.exit();
+    });
+  });
+
+program
+  .command("signup:test")
+  .description("Start N revealers for testing")
+  .option("-N, --number <x>", "Number of revealers to launch", parseInt)
+  .action(async (options: { number: number }) => {
+    const revealers = getTestRevealers(options.number);
+    revealers.forEach(async revealer => {
+      revealer.register(new BN(10));
     });
 
     process.on("SIGINT", async () => {
