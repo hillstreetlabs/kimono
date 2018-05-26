@@ -69,7 +69,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   );
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
-  event TattleTail(address tattler, address tattlee);
+  event TattleTale(address tattler, address tattlee);
 
   // nonce => revealerAddress => balance
 
@@ -87,11 +87,15 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   // MODIFIERS
 
+  modifier messageExists(uint256 _nonce) {
+    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+    _;
+  }
+
   modifier noDuplicates(address[] addresses) {
     require(!addresses.hasDuplicate());
     _;
   }
-
 
   // PUBLIC FUNCTIONS
 
@@ -166,7 +170,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedMessageIPFSHash,
     bytes _encryptedFragmentsIPFSHash
   )
-    public noDuplicates(_revealerAddresses)
+    public
+    noDuplicates(_revealerAddresses)
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
@@ -199,7 +204,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
     messageToRevealers[_nonce] = _revealerAddresses;
 
-    // Transfer the staked KimonoCoins to the contract.
+    // Transfer the _timeLockReward KimonoCoins to the contract from the creator.
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
     require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), _timeLockReward));
 
@@ -221,8 +226,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
   }
 
-  function revealFragment(uint256 _nonce, uint256 _fragment) public nonReentrant {
-    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+  function revealFragment(uint256 _nonce, uint256 _fragment)
+    public
+    nonReentrant
+    messageExists(_nonce)
+  {
     require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
       uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
@@ -252,8 +260,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit FragmentReveal(_nonce, msg.sender, _fragment, message.minFragments, message.onTimeRevealerCount);
   }
 
-  function submitRevealSecret(uint256 _nonce, uint256 _secret) public {
-    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+  function submitRevealSecret(uint256 _nonce, uint256 _secret) public messageExists(_nonce) {
     require(nonceToMessage[_nonce].secretConstructor == address(0), "Message is already revealed.");
     require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
@@ -268,8 +275,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit SecretReveal(_nonce, msg.sender, _secret);
   }
 
-  function withdrawStake(uint256 _nonce) public {
-    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+  function withdrawStake(uint256 _nonce) public messageExists(_nonce) {
     require(
       uint40(block.number) > nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
       "Reveal period is not over."
@@ -336,8 +342,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     messageToRevealerToHashOfFragments[_nonce][_tattlee] = uint256(0);
     messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
 
-    require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, balance));
-    TattleTail(msg.sender, _tattlee);
+    require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
+    TattleTale(msg.sender, _tattlee);
   }
 
   function getMessage(uint256 _nonce)
@@ -373,11 +379,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[]) {
+  function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[] nonces) {
     return revealerToMessages[_revealer];
   }
 
-  function getEligibleRevealersCount() external view returns(uint256) {
+  function getEligibleRevealersCount() external view returns(uint256 count) {
     return eligibleRevealers.length;
   }
 }
