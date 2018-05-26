@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@types/node": "^10.1.2",
+    "clui": "^0.3.6",
+    "dotenv": "^5.0.1",
+    "ethstream": "0.0.9",
+    "typescript": "^2.8.3"
+  }
+}

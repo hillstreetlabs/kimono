@@ -35,3 +35,6 @@ flattened/*.sol
 .test
 
 .env
+
+# NPM lock file
+package-lock.json
