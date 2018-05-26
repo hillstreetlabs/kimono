@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "./KimonoCoin.sol";
 import "./IPFSWrapper.sol";
+import "./KimonoCoin.sol";
 
 
 contract Kimono is IPFSWrapper {
@@ -40,10 +40,11 @@ contract Kimono is IPFSWrapper {
   event MessageCreation(
     uint256 nonce,
     address creator,
-    address[] revealerAddresses,
-    bytes encryptedFragmentsIPFSHash
+    bytes encryptedFragmentsIPFSHash,
+    address[] revealerAddresses
   );
   event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
+  event SecretReveal(uint256 nonce, address revealer, uint256 secret);
 
   // CONSTRUCTOR
 
@@ -109,15 +110,15 @@ contract Kimono is IPFSWrapper {
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
     require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), _timeLockReward));
 
-    emit MessageCreation(_nonce, msg.sender, _revealerAddresses, _encryptedFragmentsIPFSHash);
+    emit MessageCreation(_nonce, msg.sender, _encryptedFragmentsIPFSHash, _revealerAddresses);
     return true;
   }
 
   function revealFragment(uint256 _nonce, uint256 _fragment) public returns (bool) {
     require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
-    require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal block is in the future.");
+    require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
-      uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
+      uint40(block.number) > nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
       "Reveal period is over."
     );
     require(
@@ -136,8 +137,22 @@ contract Kimono is IPFSWrapper {
     return true;
   }
 
-  function revealSecret() public returns (bool) {
+  function submitRevealSecret(uint256 _nonce, uint256 _secret) public returns (bool) {
+    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+    require(nonceToMessage[_nonce].revealSecret > uint256(0), "Message is already revealed.");
+    require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
+    require(
+      bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != sha3(_secret),
+      "Revealer submitted an invalid secret."
+    );
 
+    Message storage message = nonceToMessage[_nonce];
+    message.revealSecret = _secret;
+
+    // TODO: Calculate withdrawal amounts.
+
+    emit SecretReveal(_nonce, msg.sender, _secret);
+    return true;
   }
 
   function withdrawStake() public returns (bool) {
