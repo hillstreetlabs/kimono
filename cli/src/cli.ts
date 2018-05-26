@@ -71,7 +71,7 @@ program
   .action(async (options: { number: number }) => {
     const revealers = getTestRevealers(options.number);
     revealers.forEach(async revealer => {
-      revealer.signup(new BN(10));
+      revealer.register(new BN(10));
     });
 
     process.on("SIGINT", async () => {
