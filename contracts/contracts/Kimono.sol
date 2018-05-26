@@ -21,8 +21,16 @@ contract Kimono is IPFSWrapper {
     IPFSMultiHash encryptedFragments; // IPFS multi-hash of the fragments
   }
 
-  Message[] public messages;
+  struct Revealer {
+    bytes32 publicKey;
+    uint256 minReward;
+    uint256 stake;
+  }
 
+  Message[] public messages;
+  mapping(address => Revealer) revealerTable;
+  address[] revealers;
+  address kimonoToken;
 
   // CONSTRUCTOR
 
@@ -35,5 +43,12 @@ contract Kimono is IPFSWrapper {
   // Do nothing. Intentionally not payable.
   function() public {
 
+  }
+
+  function advertise() public {
+    // take stake
+  }
+
+  function cancel() public {
   }
 }
