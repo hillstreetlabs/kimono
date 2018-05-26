@@ -5,6 +5,7 @@ declare module "ethjs-provider-http" {
     constructor(address: string, options?: any);
 
     accounts: string[];
+    sendAsync(opts: Object, callback: Function): Promise<string>;
   }
 
   export = HttpProvider;
