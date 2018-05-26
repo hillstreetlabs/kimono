@@ -70,8 +70,8 @@ export default class Revealer {
   contract: KimonoContract;
   coinContract: KimonoCoinContract;
   isSetup: boolean;
-  messages: Message[];
-  fragmentsByNonce: { [nonce: string]: Uint8Array };
+  messages: Message[] = [];
+  fragmentsByNonce: { [nonce: string]: Uint8Array } = {};
 
   constructor(secretKey: string, rpcUrl: string) {
     this.secretKey = crypto.hexToBytes(secretKey);
@@ -157,31 +157,49 @@ export default class Revealer {
         return this.addMessage(message);
       })
     );
-
-    this.debug("Got old messages", messages);
     // Return
   }
 
   async addMessage(message: Message) {
-    // Grab IPFS data
-    const content: { [address: string]: string } = await ipfs.getJson(
-      message.encryptedFragmentsIpfsHash
-    );
-    this.debug("Got content", content);
-    this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
-      content[this.address]
-    ); // Still encrypted
+    // Don't add the same message twice
+    if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) return;
+    this.messages.push(message);
+    try {
+      // Grab IPFS data
+      const content: { [address: string]: string } = await ipfs.getJson(
+        message.encryptedFragmentsIpfsHash
+      );
+      this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
+        content[this.address]
+      ); // Still encrypted
+    } catch (e) {
+      this.debug(
+        "Warning: got invalid IPFS content for message",
+        message.nonceHex,
+        new Uint8Array(await ipfs.get(message.encryptedFragmentsIpfsHash))
+      );
+    }
+
+    // Find which block to reveal message at
+    // Store that block and wait for it
   }
 
   async onAddBlock(rawBlock: Block) {
+    // Check if there are new messages
     const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
     const events = await eventsFromBlock(this.eth, this.contract, block);
     events
-      .filter(event => event.name === "MessageCreation")
+      .filter(event => event._eventName === "MessageCreation")
       .forEach((event: MessageCreationEvent) => {
         this.debug("Got message creation", event);
       });
-    this.debug("Got events", events);
+
+    // Check if we should reveal any messages
+    this.messages.forEach(message => {
+      if (message.revealBlock <= rawBlock.number.toNumber()) {
+        console.log("We should reveal", message);
+      }
+    });
   }
 
   onConfirmBlock(block: Block) {
