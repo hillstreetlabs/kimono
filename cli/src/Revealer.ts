@@ -10,6 +10,8 @@ import createProvider from "./util/createProvider";
 import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
 import { eventsFromBlock } from "./util/events";
+import Message, { IContractMessage } from "./Message";
+import { IpfsMultiHash, toIpfsHash } from "./util/ipfs";
 
 // import * as crypto from "./util/crypto";
 
@@ -34,7 +36,7 @@ async function getContract<T>(eth: Eth, contractObj: any) {
 interface KimonoContract {
   address: string;
   abi: any[];
-  revealerTable: (address: string) => { publicKey: string };
+  revealerTable: (address: string) => Promise<{ publicKey: string }>;
   registerRevealer: (
     publicKey: string,
     minReward: BN,
@@ -42,11 +44,20 @@ interface KimonoContract {
     totalStake: BN,
     opts?: any
   ) => Promise<string>;
+  getMessageNoncesForRevealer: (address: string) => Promise<{ nonces: BN[] }>;
+  getMessage: (nonce: BN) => Promise<IContractMessage>;
 }
 
 interface KimonoCoinContract {
   address: string;
   approveAll: (address: string, opts?: any) => Promise<string>;
+}
+
+interface MessageCreationEvent {
+  nonce: BN;
+  creator: string;
+  encryptedFragmentsIPFSHash: IpfsMultiHash;
+  revealerAddresses: string[];
 }
 
 export default class Revealer {
@@ -59,6 +70,7 @@ export default class Revealer {
   contract: KimonoContract;
   coinContract: KimonoCoinContract;
   isSetup: boolean;
+  messages: Message[];
 
   constructor(secretKey: string, rpcUrl: string) {
     this.secretKey = crypto.hexToBytes(secretKey);
@@ -94,13 +106,13 @@ export default class Revealer {
     if (revealer.publicKey !== NULL_PUBLIC_KEY)
       console.warn(`WARNING: Revealer ${this.address} has already registered`);
 
-    console.log("Approving KimonoCoin transfers");
+    this.debug("Approving KimonoCoin transfers");
     await this.coinContract.approveAll(this.contract.address, {
       from: this.address,
       gas: GAS_LIMIT
     });
 
-    console.log("Registering Kimono Revealer with address ", this.address);
+    this.debug("Registering Kimono Revealer with address ", this.address);
     await this.contract.registerRevealer(
       crypto.bytesToHex(this.publicKey),
       new BN(Unit.toWei(minMessagePrice, "ether")),
@@ -116,26 +128,51 @@ export default class Revealer {
 
   async start() {
     if (!this.isSetup) await this.setup();
-    console.log("Starting node with address", this.address);
+    await this.getOldMessages();
+    this.debug("Starting node with address", this.address);
     this.ethstream.start();
   }
 
   async exit() {
-    console.log("Exiting...");
+    this.debug("Exiting...");
     await this.ethstream.stop();
   }
 
-  getAllMessages() {
+  async getOldMessages() {
+    this.debug("Getting old messages");
+    const result: {
+      nonces: BN[];
+    } = await this.contract.getMessageNoncesForRevealer(this.address);
+
+    const messages = await Promise.all(
+      result.nonces.map(async nonce => {
+        const message = await this.contract.getMessage(nonce);
+        return Message.fromContract(message);
+      })
+    );
+
+    this.messages = messages;
+
+    this.debug("Got old messages", messages);
     // Return
   }
 
   async onAddBlock(rawBlock: Block) {
     const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
     const events = await eventsFromBlock(this.eth, this.contract, block);
-    console.log("Got events", events);
+    events
+      .filter(event => event.name === "MessageCreation")
+      .forEach((event: MessageCreationEvent) => {
+        this.debug("Got message creation", event);
+      });
+    this.debug("Got events", events);
   }
 
   onConfirmBlock(block: Block) {
-    console.log("Confirmed block", block.hash);
+    this.debug("Confirmed block", block.hash);
+  }
+
+  debug(...args: any[]) {
+    console.log(`[${this.address.substring(0, 9)}]`, ...args);
   }
 }

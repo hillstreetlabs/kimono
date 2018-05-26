@@ -1,11 +1,6 @@
 import BN from "bn.js";
 import * as crypto from "./util/crypto";
-
-type IpfsMultiHash = string[];
-
-function toIpfsHash(multiHash: IpfsMultiHash) {
-  return crypto.bytesToBase58(crypto.hexArrayToBytes(multiHash));
-}
+import { IpfsMultiHash, toIpfsHash } from "./util/ipfs";
 
 export interface IContractMessage {
   creator: string;
@@ -19,19 +14,6 @@ export interface IContractMessage {
   encryptedMessage: IpfsMultiHash;
   encryptedFragments: IpfsMultiHash;
 }
-
-export type MessageDataArray = [
-  string,
-  BN,
-  BN,
-  BN,
-  BN,
-  BN,
-  BN,
-  BN,
-  IpfsMultiHash,
-  IpfsMultiHash
-];
 
 export default class Message {
   creator: string; // Address of the creator of the message
@@ -49,20 +31,7 @@ export default class Message {
     if (message.creator) this.creator = message.creator;
   }
 
-  static fromContract(dataArray: MessageDataArray) {
-    const contractMessage = {
-      creator: dataArray[0],
-      minFragments: dataArray[1],
-      totalFragments: dataArray[2],
-      revealBlock: dataArray[3],
-      revealPeriod: dataArray[4],
-      revealSecret: dataArray[5],
-      hashOfRevealSecret: dataArray[6],
-      timeLockReward: dataArray[7],
-      encryptedMessage: dataArray[8],
-      encryptedFragments: dataArray[9]
-    };
-
+  static fromContract(contractMessage: IContractMessage) {
     return new Message({
       creator: contractMessage.creator,
       minFragments: contractMessage.minFragments.toNumber(),
