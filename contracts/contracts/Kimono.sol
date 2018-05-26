@@ -42,6 +42,7 @@ contract Kimono is IPFSWrapper {
     address[] revealerAddresses,
     bytes encryptedFragmentsIPFSHash
   );
+  event FragmentReveal(uint256 messageId, address revealer, uint256 fragment);
 
   // CONSTRUCTOR
 
@@ -110,5 +111,64 @@ contract Kimono is IPFSWrapper {
 
     emit MessageCreation(messageId, msg.sender, _revealerAddresses, _encryptedFragmentsIPFSHash);
     return messageId;
+  }
+
+  function revealFragment(uint256 _messageId, uint256 _fragment) returns (bool) {
+    require(_messageId.add(1) <= messages.length, "Message does not exist.");
+    require(uint40(block.number) > messages[_messageId].revealBlock, "Reveal block is in the future.");
+    require(
+      uint40(block.number) < messages[_messageId].revealBlock + messages[_messageId].revealPeriod,
+      "Reveal period is over."
+    );
+    require(
+      messages[_messageId].revealerToHashOfFragments[msg.sender] != uint256(0),
+      "Message sender is not part of the revealers."
+    );
+    require(
+      messages[_messageId].revealerToHashOfFragments[msg.sender] != keccak256(_fragment),
+      "Revealer submitted the wrong fragment."
+    );
+
+    emit FragmentReveal(_messageId, msg.sender, _fragment);
+    return true;
+  }
+
+  function revealSecret() returns (bool) {
+
+  }
+
+  function withdrawStake() returns (bool) {
+
+  }
+
+  function getMessage(uint256 _messageId)
+    external
+    view
+    returns (
+      address,
+      uint8,
+      uint8,
+      uint40,
+      uint40,
+      uint256,
+      uint256,
+      uint256,
+      IPFSMultiHash,
+      IPFSMultiHash
+    )
+  {
+    Message memory message = messages[_messageId];
+    return (
+      message.creator,
+      message.minFragments,
+      message.totalFragments,
+      message.revealBlock,
+      message.revealPeriod,
+      message.revealSecret,
+      message.hashOfRevealSecret,
+      message.timeLockReward,
+      combineIPFSHash(message.encryptedMessage),
+      combineIPFSHash(message.encryptedFragments)
+    );
   }
 }
