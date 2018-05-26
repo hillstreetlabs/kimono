@@ -158,7 +158,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     bytes _encryptedMessageIPFSHash,
     bytes _encryptedFragmentsIPFSHash
   )
-    internal
+    public
   {
     require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
