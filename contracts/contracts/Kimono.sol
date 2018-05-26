@@ -174,11 +174,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
   }
 
-  function propose(uint256 _nonce, address[] _selectedRevealers) internal {
-  }
-
-  function cancel() public {
-  }
 
   function createMessage(
     uint256 _nonce,
