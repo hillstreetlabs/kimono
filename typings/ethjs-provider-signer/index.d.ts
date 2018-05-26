@@ -1,11 +1,11 @@
-declare module "ethjs-provider-http" {
+declare module "ethjs-provider-signer" {
   import { IProvider } from "ethjs-shared";
 
-  class HttpProvider implements IProvider {
+  class SignerProvider implements IProvider {
     constructor(address: string, options?: any);
 
     accounts: string[];
   }
 
-  export = HttpProvider;
+  export = SignerProvider;
 }
