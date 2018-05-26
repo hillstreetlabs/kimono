@@ -11,7 +11,7 @@ import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
 import { eventsFromBlock } from "./util/events";
 import Message, { IContractMessage } from "./Message";
-import { IpfsMultiHash, toIpfsHash } from "./util/ipfs";
+import * as ipfs from "./util/ipfs";
 
 // import * as crypto from "./util/crypto";
 
@@ -56,7 +56,7 @@ interface KimonoCoinContract {
 interface MessageCreationEvent {
   nonce: BN;
   creator: string;
-  encryptedFragmentsIPFSHash: IpfsMultiHash;
+  encryptedFragmentsIPFSHash: ipfs.IpfsMultiHash;
   revealerAddresses: string[];
 }
 
@@ -71,6 +71,7 @@ export default class Revealer {
   coinContract: KimonoCoinContract;
   isSetup: boolean;
   messages: Message[];
+  fragmentsByNonce: { [nonce: string]: Uint8Array };
 
   constructor(secretKey: string, rpcUrl: string) {
     this.secretKey = crypto.hexToBytes(secretKey);
@@ -151,10 +152,25 @@ export default class Revealer {
       })
     );
 
-    this.messages = messages;
+    await Promise.all(
+      messages.map(message => {
+        return this.addMessage(message);
+      })
+    );
 
     this.debug("Got old messages", messages);
     // Return
+  }
+
+  async addMessage(message: Message) {
+    // Grab IPFS data
+    const content: { [address: string]: string } = await ipfs.getJson(
+      message.encryptedFragmentsIpfsHash
+    );
+    this.debug("Got content", content);
+    this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
+      content[this.address]
+    ); // Still encrypted
   }
 
   async onAddBlock(rawBlock: Block) {

@@ -3,6 +3,7 @@ import * as crypto from "./util/crypto";
 import { IpfsMultiHash, toIpfsHash } from "./util/ipfs";
 
 export interface IContractMessage {
+  nonce: BN;
   creator: string;
   minFragments: BN;
   totalFragments: BN;
@@ -16,6 +17,8 @@ export interface IContractMessage {
 }
 
 export default class Message {
+  nonce: Uint8Array;
+  nonceHex: string;
   creator: string; // Address of the creator of the message
   minFragments: number; // K-number of fragments needed to construct the secret
   totalFragments: number; // Total number of fragments that will be distributed
@@ -24,11 +27,12 @@ export default class Message {
   revealSecret: Uint8Array; // Secret that'll be used to decrypt the message
   hashOfRevealSecret: Uint8Array; // Hash of the revealSecret, submitted by the user and used for verification
   timeLockReward: BN; // Time lock reward staked by the creator of the message
-  encryptedMessage: string; // IPFS multi-hash of the encrypted message
-  encryptedFragments: string; // IPFS multi-hash of the fragments
+  encryptedMessageIpfsHash: string; // IPFS multi-hash of the encrypted message
+  encryptedFragmentsIpfsHash: string; // IPFS multi-hash of the fragments
 
   constructor(message: Partial<Message>) {
-    if (message.creator) this.creator = message.creator;
+    Object.assign(this, message);
+    this.nonceHex = crypto.bytesToHex(this.nonce);
   }
 
   static fromContract(contractMessage: IContractMessage) {
@@ -44,8 +48,8 @@ export default class Message {
         32
       ),
       timeLockReward: contractMessage.timeLockReward,
-      encryptedMessage: toIpfsHash(contractMessage.encryptedMessage),
-      encryptedFragments: toIpfsHash(contractMessage.encryptedFragments)
+      encryptedMessageIpfsHash: toIpfsHash(contractMessage.encryptedMessage),
+      encryptedFragmentsIpfsHash: toIpfsHash(contractMessage.encryptedFragments)
     });
   }
 }

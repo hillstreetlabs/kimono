@@ -9,7 +9,9 @@
     "kimono": "./dist/cli.js"
   },
   "dependencies": {
+    "@types/form-data": "^2.2.1",
     "@types/node": "^10.1.2",
+    "@types/node-fetch": "^1.6.9",
     "babel-runtime": "^6.26.0",
     "bs58": "^4.0.1",
     "clui": "^0.3.6",
@@ -23,7 +25,9 @@
     "ethjs-signer": "^0.1.1",
     "ethjs-unit": "^0.1.6",
     "ethstream": "0.0.9",
+    "form-data": "^2.3.2",
     "js-sha3": "^0.7.0",
+    "node-fetch": "^2.1.2",
     "tweetnacl": "^1.0.0",
     "tweetnacl-util": "^0.15.0",
     "typescript": "^2.8.3"
