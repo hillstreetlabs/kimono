@@ -76,7 +76,6 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   // CONSTRUCTOR
   constructor (address _kimonoCoinAddress) public {
     kimonoCoinAddress = _kimonoCoinAddress;
-    KimonoCoin(kimonoCoinAddress).approveAll(address(this));
   }
 
   // FALLBACK FUNCTION
@@ -311,7 +310,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
 
     if (amount > 0 ) {
-      require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, amount));
+      require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, amount));
       emit StakeWithdrawal(msg.sender, amount);
     }
   }
@@ -330,7 +329,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     messageToRevealerToHashOfFragments[_nonce][_tattlee] = uint256(0);
     messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
 
-    require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
+    require(KimonoCoin(kimonoCoinAddress).transfer(msg.sender, balance));
     TattleTail(msg.sender, _tattlee);
   }
 
