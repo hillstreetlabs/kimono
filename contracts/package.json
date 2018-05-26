@@ -17,16 +17,19 @@
     "babel-register": "^6.26.0",
     "dotenv": "^5.0.1",
     "openzeppelin-solidity": "^1.9.0",
-    "truffle-hdwallet-provider": "^0.0.3"
+    "truffle": "^4.1.11",
+    "truffle-hdwallet-provider": "0.0.3",
+    "zeppelin-solidity": "^1.9.0"
   },
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "chai-bignumber": "^2.0.2",
     "espresso-tests": "^1.0.5",
-    "eth-gas-reporter": "^0.1.2",
+    "eth-gas-reporter": "^0.1.5",
     "ethereumjs-util": "^5.2.0",
     "ganache-cli": "^6.1.0",
     "solium": "^1.1.6"
-  }
+  },
+  "license": "ISC"
 }

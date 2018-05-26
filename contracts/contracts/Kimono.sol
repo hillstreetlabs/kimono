@@ -3,9 +3,11 @@ pragma solidity ^0.4.23;
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./IPFSWrapper.sol";
 import "./KimonoCoin.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-solidity/contracts/ReentrancyGuard.sol";
 
 
-contract Kimono is IPFSWrapper {
+contract Kimono is IPFSWrapper, ReentrancyGuard {
   using SafeMath for uint256;
 
   struct Message {
@@ -24,7 +26,7 @@ contract Kimono is IPFSWrapper {
   struct Revealer {
     bytes32 publicKey;
     uint256 minReward;
-    uint256 stake;
+    uint256 stakeAmount;
   }
 
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
@@ -46,6 +48,9 @@ contract Kimono is IPFSWrapper {
   event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
 
+  // messageHash => revealerAddress => balance
+  mapping(bytes32 => mapping(address => uint256)) balances;
+
   // CONSTRUCTOR
 
   constructor (address _kimonoCoinAddress) public {
@@ -62,8 +67,69 @@ contract Kimono is IPFSWrapper {
 
   // PUBLIC FUNCTIONS
 
-  function advertise() public {
-    // take stake
+  function advertise(
+    bytes32 _publicKey,
+    uint256 _minReward,
+    uint256 _stakeAmount
+  ) public nonReentrant {
+    Revealer memory revealer = Revealer({
+      publicKey: _publicKey,
+      minReward: _minReward,
+      stakeAmount: _stakeAmount
+    });
+    revealerTable[msg.sender] = revealer;
+    revealers.push(msg.sender);
+  }
+
+  function proposeAndCreate(
+    uint256 _nonce,
+    address[] _selectedRevealers,
+    uint8 _minFragments,
+    uint8 _totalFragments,
+    uint40 _revealBlock,
+    uint40 _revealPeriod,
+    uint256 _hashOfRevealSecret,
+    uint256 _timeLockReward,
+    address[] _revealerAddresses,
+    uint256[] _revealerHashOfFragments,
+    bytes _encryptedMessageIPFSHash,
+    bytes _encryptedFragmentsIPFSHash
+  ) public {
+    bytes32 messageHash = keccak256(
+      _nonce,
+      _minFragments,
+      _totalFragments,
+      _revealBlock,
+      _revealPeriod,
+      _hashOfRevealSecret,
+      _timeLockReward,
+      _revealerAddresses,
+      _revealerHashOfFragments,
+      _encryptedMessageIPFSHash,
+      _encryptedFragmentsIPFSHash
+    );
+    propose(messageHash, _selectedRevealers);
+    createMessage(
+      _nonce,
+      _minFragments,
+      _totalFragments,
+      _revealBlock,
+      _revealPeriod,
+      _hashOfRevealSecret,
+      _timeLockReward,
+      _revealerAddresses,
+      _revealerHashOfFragments,
+      _encryptedMessageIPFSHash,
+      _encryptedFragmentsIPFSHash
+    );
+  }
+
+  function propose(bytes32 messageHash, address[] _selectedRevealers) internal {
+    for(uint256 i = 0; i < _selectedRevealers.length; i++) {
+      Revealer storage revealer = revealerTable[_selectedRevealers[i]];
+      require(ERC20(kimonoCoinAddress).transferFrom(msg.sender, address(this), revealer.stakeAmount));
+      balances[messageHash][msg.sender] = balances[messageHash][msg.sender].add(revealer.stakeAmount);
+    }
   }
 
   function cancel() public {
@@ -82,9 +148,10 @@ contract Kimono is IPFSWrapper {
     bytes _encryptedMessageIPFSHash,
     bytes _encryptedFragmentsIPFSHash
   )
-    public
+    internal
     returns (bool)
   {
+    require(nonceToMessage[_nonce].creator == address(0), "Message exists already.");
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
     require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
     require(_minFragments > 2, "The minimum number of fragments is 2");
@@ -126,7 +193,7 @@ contract Kimono is IPFSWrapper {
       "Message sender is not part of the revealers."
     );
     require(
-      bytes32(messageToRevealerToHashOfFragments[_nonce][msg.sender]) != sha3(_fragment),
+      bytes32(messageToRevealerToHashOfFragments[_nonce][msg.sender]) != keccak256(_fragment),
       "Revealer submitted an invalid fragment."
     );
 
@@ -142,7 +209,7 @@ contract Kimono is IPFSWrapper {
     require(nonceToMessage[_nonce].revealSecret > uint256(0), "Message is already revealed.");
     require(uint40(block.number) < nonceToMessage[_nonce].revealBlock, "Reveal period did not start.");
     require(
-      bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != sha3(_secret),
+      bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != keccak256(_secret),
       "Revealer submitted an invalid secret."
     );
 
@@ -155,7 +222,7 @@ contract Kimono is IPFSWrapper {
     return true;
   }
 
-  function withdrawStake() public returns (bool) {
+  function withdrawStake(uint256 _nonce) public returns (bool) {
 
   }
 
@@ -190,19 +257,19 @@ contract Kimono is IPFSWrapper {
     );
   }
 
-  function getWithdrawalAmountForCreator() internal {
+  function getWithdrawalAmountForCreator() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForRevealer() internal {
+  function getWithdrawalAmountForRevealer() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForLateRevealer() internal {
+  function getWithdrawalAmountForLateRevealer() internal returns (uint256) {
 
   }
 
-  function getWithdrawalAmountForNoShows() internal {
+  function getWithdrawalAmountForNoShows() internal returns (uint256) {
 
   }
 }
