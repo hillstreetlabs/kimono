@@ -16,7 +16,6 @@ contract KimonoCoin is MintableToken, BurnableToken {
   event ApproveAll(address sender, address spender);
   event TestingDistributeTokens(address account, uint256 amount);
 
-
   // CONSTRUCTOR
 
   constructor () public {
