@@ -7,7 +7,22 @@ import * as crypto from "./crypto";
 import BN from "bn.js";
 
 interface KimonoContract {
-  advertise: (stakeAmount: BN, opts?: any) => Promise<string>;
+  createMessage: (
+    nonce: string,
+    minFragments: number,
+    totalFragments: number,
+    revealBlock: number,
+    revealPeriod: number,
+    hashOfRevealSecret: string,
+    timeLockReward: BN,
+    revealerAddresses: string[],
+    revealerHashOfFragments: string[],
+    encryptedMessageIPFSHash: string,
+    encryptedFragmentsIPFSHash: string,
+    opts?: any
+  ) => Promise<string>;
+  getEligibleRevealersCount: () => Promise<any>;
+  eligibleRevealers(i: number): Promise<any>;
   address: string;
 }
 
@@ -36,6 +51,14 @@ export default class Kimono {
 
   async getEligibleRevealers() {
     // TODO: return revealers from contract that fit criteria
+    const eligibleRevealers = (await this.kimono.getEligibleRevealersCount())[0];
+    console.log("Eligible revealers:", eligibleRevealers.toString());
+    const revealerAddresses = new Array(eligibleRevealers).fill(undefined);
+    for (let i = 0; i < eligibleRevealers; i++) {
+      const response = await this.kimono.eligibleRevealers(i);
+      revealerAddresses[i] = response[0];
+    }
+    return revealerAddresses;
   }
 
   async createMessage(
@@ -44,16 +67,12 @@ export default class Kimono {
     revealAtBlock: number,
     reward: BN,
     minFragments: number,
-    totalFragments: number
+    totalFragments: number,
+    props?: Object
   ) {
-    console.log(
-      secretKey,
-      revealAtBlock,
-      content,
-      reward,
-      minFragments,
-      totalFragments
-    );
+    const allAddresses = await this.getEligibleRevealers();
+    const revealerAddresses = allAddresses.slice(0, totalFragments);
+    console.log("Revealers", revealerAddresses);
     const nonce = crypto.createNonce();
     const secret = crypto.buildMessageSecret(
       nonce,
@@ -65,19 +84,57 @@ export default class Kimono {
       minFragments
     );
     console.log("shares", shares);
-    // TODO: get eligible revealers
+    // TODO: Encrypt and hash shares
+    const revealerHashOfFragments = shares.map((share: string, i: number) => {
+      console.log("address", revealerAddresses[i], i);
+      return crypto.bytesToHex(crypto.sha3(crypto.hexToBytes(share)));
+    });
+    console.log(revealerHashOfFragments);
+    // const fragmentsIpfsHash = await this.ipfs.add("foo");
+    // console.log("fragments IPFS", fragmentsIpfsHash);
+    // Deal with content
     const encryptedContent = crypto.encryptMessage(content, nonce, secret);
-    const ipfsHash = await this.ipfs.add(encryptedContent);
-    console.log("IPFS", ipfsHash);
-    const uploadedContent = await this.ipfs.get(ipfsHash);
-    console.log("uploadedContent", uploadedContent);
-    const reconstructedSecret = crypto.combineSecretFragments(shares);
-    console.log("reconstructed", reconstructedSecret);
-    const decrypted = await crypto.decryptMessage(
-      new Uint8Array(uploadedContent),
-      nonce,
-      crypto.hexToBytes(reconstructedSecret)
+    const contentIpfsHash = await this.ipfs.add(encryptedContent);
+    console.log("content IPFS", contentIpfsHash);
+    // const uploadedContent = await this.ipfs.get(ipfsHash);
+    // console.log("uploadedContent", uploadedContent);
+    // const reconstructedSecret = crypto.combineSecretFragments(shares);
+    // console.log("reconstructed", reconstructedSecret);
+    // const decrypted = await crypto.decryptMessage(
+    //   new Uint8Array(uploadedContent),
+    //   nonce,
+    //   crypto.hexToBytes(reconstructedSecret)
+    // );
+    // console.log("Decrypted", decrypted);
+    console.log(
+      "args",
+      crypto.bytesToHex(nonce),
+      minFragments,
+      totalFragments,
+      revealAtBlock,
+      11,
+      crypto.bytesToHex(crypto.sha3(secret)),
+      reward,
+      revealerAddresses,
+      revealerHashOfFragments,
+      crypto.bytesToHex(crypto.base58ToBytes(contentIpfsHash)),
+      crypto.bytesToHex(crypto.base58ToBytes(contentIpfsHash)),
+      props || {}
     );
-    console.log("Decrypted", decrypted);
+    const transactionHash = await this.kimono.createMessage(
+      crypto.bytesToHex(nonce),
+      minFragments,
+      totalFragments,
+      revealAtBlock,
+      11,
+      crypto.bytesToHex(crypto.sha3(secret)),
+      reward,
+      revealerAddresses,
+      revealerHashOfFragments,
+      crypto.bytesToHex(crypto.base58ToBytes(contentIpfsHash)),
+      crypto.bytesToHex(crypto.base58ToBytes(contentIpfsHash)),
+      props || {}
+    );
+    return transactionHash;
   }
 }

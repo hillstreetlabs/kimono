@@ -1,6 +1,6 @@
 import nacl from "tweetnacl";
 import util from "tweetnacl-util";
-import { sha256 as sha } from "js-sha256";
+import { keccak256 } from "js-sha3";
 import bs58 from "bs58";
 import BN from "bn.js";
 import secrets from "secrets.js-grempe";
@@ -61,8 +61,8 @@ function concat(array1: Uint8Array, array2: Uint8Array) {
   return newArray;
 }
 
-export function sha256(bytes: Uint8Array) {
-  return new Uint8Array(sha.arrayBuffer(bytes));
+export function sha3(bytes: Uint8Array) {
+  return new Uint8Array(keccak256.update(bytes).arrayBuffer());
 }
 
 export function createNonce() {
@@ -73,7 +73,7 @@ export function buildMessageSecret(
   nonce: Uint8Array,
   sellerSecret: Uint8Array
 ) {
-  return sha256(concat(nonce, sellerSecret));
+  return sha3(concat(nonce, sellerSecret));
 }
 
 export function encryptMessage(
