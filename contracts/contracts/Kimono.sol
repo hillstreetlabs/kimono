@@ -124,10 +124,13 @@ contract Kimono is IPFSWrapper {
       messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
       "Message sender is not part of the revealers."
     );
-    // require(
-    //   messages[_messageId].revealerToHashOfFragments[msg.sender] != keccak256(_fragment),
-    //   "Revealer submitted the wrong fragment."
-    // );
+    require(
+      bytes32(messageToRevealerToHashOfFragments[_nonce][msg.sender]) != sha3(_fragment),
+      "Revealer submitted an invalid fragment."
+    );
+
+    messageToRevealerToHashOfFragments[_nonce][msg.sender] = uint256(0);
+    messageToRevealerToFragments[_nonce][msg.sender] = _fragment;
 
     emit FragmentReveal(_nonce, msg.sender, _fragment);
     return true;
