@@ -35,6 +35,7 @@ flattened/*.sol
 .test
 
 .env
+*.DS_Store
 
 # NPM lock file
 package-lock.json

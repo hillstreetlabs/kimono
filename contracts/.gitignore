@@ -33,5 +33,6 @@ yarn-error.log
 build/
 flattened/*.sol
 .test
+*.DS_Store
 
 .env
