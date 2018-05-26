@@ -17,8 +17,6 @@ contract Kimono is IPFSWrapper {
     uint256 revealSecret; // Secret that'll be used to decrypt the message
     uint256 hashOfRevealSecret; // Hash of the revealSecret, submitted by the user and used for verification
     uint256 timeLockReward; // Time lock reward staked by the creator of the message
-    mapping (address => uint256) revealerToFragments; // Addresses to decrypted fragments
-    mapping (address => uint256) revealerToHashOfFragments; // Addresses to hash of fragments, used for verification
     IPFSMultiHash encryptedMessage; // IPFS multi-hash of the encrypted message
     IPFSMultiHash encryptedFragments; // IPFS multi-hash of the fragments
   }
@@ -30,20 +28,22 @@ contract Kimono is IPFSWrapper {
   }
 
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
-  Message[] public messages;
-  mapping(address => Revealer) revealerTable;
-  address[] revealers;
-  address kimonoCoinAddress;
+  mapping (uint256 => Message) public nonceToMessage;
+  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToFragments; // Addresses to decrypted fragments
+  mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments; // Addresses to hash of fragments, used for verification
+  mapping(address => Revealer) public revealerTable;
+  address[] public revealers;
+  address public kimonoCoinAddress;
 
   // EVENTS
 
   event MessageCreation(
-    uint256 messageId,
+    uint256 nonce,
     address creator,
     address[] revealerAddresses,
     bytes encryptedFragmentsIPFSHash
   );
-  event FragmentReveal(uint256 messageId, address revealer, uint256 fragment);
+  event FragmentReveal(uint256 nonce, address revealer, uint256 fragment);
 
   // CONSTRUCTOR
 
@@ -69,6 +69,7 @@ contract Kimono is IPFSWrapper {
   }
 
   function createMessage(
+    uint256 _nonce,
     uint8 _minFragments,
     uint8 _totalFragments,
     uint40 _revealBlock,
@@ -81,13 +82,13 @@ contract Kimono is IPFSWrapper {
     bytes _encryptedFragmentsIPFSHash
   )
     public
-    returns (uint256)
+    returns (bool)
   {
     require(_revealBlock > uint40(block.number), "Reveal block is not in the future.");
     require(_revealPeriod > MINIMUM_REVEAL_PERIOD_LENGTH, "Reveal period is not long enough.");
     // TODO: Add some form of validation for minFragments and totalFragments
 
-    Message memory message = Message({
+    nonceToMessage[_nonce] = Message({
       creator: msg.sender,
       minFragments: _minFragments,
       totalFragments: _totalFragments,
@@ -100,29 +101,27 @@ contract Kimono is IPFSWrapper {
       encryptedFragments: splitIPFSHash(_encryptedFragmentsIPFSHash)
     });
 
-    // for (uint256 i = 0; i < _revealerAddresses.length; i++) {
-    //   message.revealerToHashOfFragments[_revealerAddresses[i]] = _revealerHashOfFragments[i];
-    // }
-
-    uint64 messageId = uint64(messages.push(message) - 1);
+    for (uint256 i = 0; i < _revealerAddresses.length; i++) {
+      messageToRevealerToHashOfFragments[_nonce][_revealerAddresses[i]] = _revealerHashOfFragments[i];
+    }
 
     // Transfer the staked KimonoCoins to the contract.
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
     require(KimonoCoin(kimonoCoinAddress).transferFrom(msg.sender, address(this), _timeLockReward));
 
-    emit MessageCreation(messageId, msg.sender, _revealerAddresses, _encryptedFragmentsIPFSHash);
-    return messageId;
+    emit MessageCreation(_nonce, msg.sender, _revealerAddresses, _encryptedFragmentsIPFSHash);
+    return true;
   }
 
-  function revealFragment(uint256 _messageId, uint256 _fragment) returns (bool) {
-    require(_messageId.add(1) <= messages.length, "Message does not exist.");
-    require(uint40(block.number) > messages[_messageId].revealBlock, "Reveal block is in the future.");
+  function revealFragment(uint256 _nonce, uint256 _fragment) public returns (bool) {
+    require(nonceToMessage[_nonce].creator != address(0), "Message does not exist.");
+    require(uint40(block.number) > nonceToMessage[_nonce].revealBlock, "Reveal block is in the future.");
     require(
-      uint40(block.number) < messages[_messageId].revealBlock + messages[_messageId].revealPeriod,
+      uint40(block.number) < nonceToMessage[_nonce].revealBlock + nonceToMessage[_nonce].revealPeriod,
       "Reveal period is over."
     );
     require(
-      messages[_messageId].revealerToHashOfFragments[msg.sender] != uint256(0),
+      messageToRevealerToHashOfFragments[_nonce][msg.sender] != uint256(0),
       "Message sender is not part of the revealers."
     );
     // require(
@@ -130,19 +129,19 @@ contract Kimono is IPFSWrapper {
     //   "Revealer submitted the wrong fragment."
     // );
 
-    emit FragmentReveal(_messageId, msg.sender, _fragment);
+    emit FragmentReveal(_nonce, msg.sender, _fragment);
     return true;
   }
 
-  function revealSecret() returns (bool) {
+  function revealSecret() public returns (bool) {
 
   }
 
-  function withdrawStake() returns (bool) {
+  function withdrawStake() public returns (bool) {
 
   }
 
-  function getMessage(uint256 _messageId)
+  function getMessage(uint256 _nonce)
     external
     view
     returns (
@@ -158,7 +157,7 @@ contract Kimono is IPFSWrapper {
       bytes
     )
   {
-    Message memory message = messages[_messageId];
+    Message memory message = nonceToMessage[_nonce];
     return (
       message.creator,
       message.minFragments,
