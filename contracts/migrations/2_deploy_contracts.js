@@ -31,7 +31,7 @@ module.exports = function(deployer, network, accounts) {
     })
     .then(() => {
       console.log("Deploying the Kimono protocol...");
-      return deployer.deploy(Kimono);
+      return deployer.deploy(Kimono, token.address);
     })
     .then(() => {
       return Kimono.deployed();

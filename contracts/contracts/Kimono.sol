@@ -17,6 +17,7 @@ contract Kimono is IPFSWrapper {
     uint256 revealSecret; // Secret that'll be used to decrypt the message
     uint256 hashOfRevealSecret; // Hash of the revealSecret, submitted by the user and used for verification
     uint256 timeLockReward; // Time lock reward staked by the creator of the message
+    mapping (address => uint256) revealerToFragments; // Addresses to decrypted fragments
     mapping (address => uint256) revealerToHashOfFragments; // Addresses to hash of fragments, used for verification
     IPFSMultiHash encryptedMessage; // IPFS multi-hash of the encrypted message
     IPFSMultiHash encryptedFragments; // IPFS multi-hash of the fragments
@@ -99,9 +100,9 @@ contract Kimono is IPFSWrapper {
       encryptedFragments: splitIPFSHash(_encryptedFragmentsIPFSHash)
     });
 
-    for (uint256 i = 0; i < _revealerAddresses.length; i++) {
-      message.revealerToHashOfFragments[_revealerAddresses[i]] = _revealerHashOfFragments[i];
-    }
+    // for (uint256 i = 0; i < _revealerAddresses.length; i++) {
+    //   message.revealerToHashOfFragments[_revealerAddresses[i]] = _revealerHashOfFragments[i];
+    // }
 
     uint64 messageId = uint64(messages.push(message) - 1);
 
@@ -124,10 +125,10 @@ contract Kimono is IPFSWrapper {
       messages[_messageId].revealerToHashOfFragments[msg.sender] != uint256(0),
       "Message sender is not part of the revealers."
     );
-    require(
-      messages[_messageId].revealerToHashOfFragments[msg.sender] != keccak256(_fragment),
-      "Revealer submitted the wrong fragment."
-    );
+    // require(
+    //   messages[_messageId].revealerToHashOfFragments[msg.sender] != keccak256(_fragment),
+    //   "Revealer submitted the wrong fragment."
+    // );
 
     emit FragmentReveal(_messageId, msg.sender, _fragment);
     return true;
@@ -153,8 +154,8 @@ contract Kimono is IPFSWrapper {
       uint256,
       uint256,
       uint256,
-      IPFSMultiHash,
-      IPFSMultiHash
+      bytes,
+      bytes
     )
   {
     Message memory message = messages[_messageId];
