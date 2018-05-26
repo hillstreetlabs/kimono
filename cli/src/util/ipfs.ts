@@ -2,10 +2,10 @@ import * as crypto from "./crypto";
 import fetch from "node-fetch";
 import FormData from "form-data";
 
-export type IpfsMultiHash = string[];
+export type IpfsMultiHash = string;
 
 export function toIpfsHash(multiHash: IpfsMultiHash) {
-  return crypto.bytesToBase58(crypto.hexArrayToBytes(multiHash));
+  return crypto.bytesToBase58(crypto.hexToBytes(multiHash));
 }
 
 import util from "tweetnacl-util";
@@ -35,5 +35,6 @@ export async function addJson(data: Object) {
 
 export async function getJson(hash: string) {
   const buffer = await this.get(hash);
+  console.log(util.encodeUTF8(new Uint8Array(buffer)));
   return JSON.parse(util.encodeUTF8(new Uint8Array(buffer)));
 }

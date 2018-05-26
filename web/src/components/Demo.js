@@ -10,6 +10,7 @@ import BN from "bn.js";
 export default class Demo extends Component {
   @observable secretKey = null;
   @observable content = { message: "Hey there, this is a demo" };
+  @observable revealBlock = "";
 
   async signMessage() {
     this.secretKey = await this.props.store.generateSecretKey();
@@ -20,7 +21,7 @@ export default class Demo extends Component {
     await this.props.store.kimono.createMessage(
       this.secretKey,
       this.content,
-      1000,
+      parseInt(this.revealBlock),
       new BN(100000),
       2,
       3,
@@ -51,6 +52,13 @@ export default class Demo extends Component {
           onChange={e => this.handleContentChange(e)}
           value={JSON.stringify(this.content)}
         />
+        <p>
+          Reveal block:{" "}
+          <input
+            type="text"
+            onChange={e => (this.revealBlock = e.target.value)}
+          />
+        </p>
         <p>
           <button
             disabled={!this.secretKey}
