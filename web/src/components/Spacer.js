@@ -1,6 +1,5 @@
 import styled, { css } from "react-emotion";
-
-const basePadding = 20;
+import { basePadding } from "../styles";
 
 const spacerSize = (pads, props) => {
   return css`
