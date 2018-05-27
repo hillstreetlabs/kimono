@@ -54,6 +54,16 @@ export default class Store {
     }
   }
 
+  @computed
+  get kimonoCoin() {
+    if (!this.networkVersion) return null;
+    try {
+      return new Kimono(this.eth.currentProvider, this.networkVersion);
+    } catch (err) {
+      return null;
+    }
+  }
+
   @action
   async getCurrentUser() {
     const accounts = await this.eth.accounts();

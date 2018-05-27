@@ -11,11 +11,25 @@ import { Container, Wrapper, HeaderLink } from "./Root";
 import styled, { keyframes } from "react-emotion";
 import { basePadding, colors, lighten } from "../styles";
 
+const AnimatedButton = styled(Button)`
+  ${props =>
+    props.loading &&
+    `
+    opacity: 1 !important;
+    animation: ${gentlePulseColor} 2s infinite;
+  `};
+`;
+
 @inject("store")
 @observer
-export default class AddMessage extends Component {
+export default class Faucet extends Component {
 
   componentDidMount() {
+  }
+
+  async requestCoins() {
+    console.log('requested coins');
+    console.log('', this.props.store.currentUser.address);
   }
 
   render() {
@@ -23,6 +37,12 @@ export default class AddMessage extends Component {
       <Container>
         <Wrapper color={colors.green}>
           <h1>Faucet</h1>
+          <Spacer />
+          <AnimatedButton
+            onClick={() => this.requestCoins()}
+          >
+            Get 20 tokens
+          </AnimatedButton>
         </Wrapper>
       </Container>
     );
