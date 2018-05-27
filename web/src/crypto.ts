@@ -77,11 +77,11 @@ export function buildMessageSecret(
 }
 
 export function encryptMessage(
-  obj: Object,
+  message: string,
   nonce: Uint8Array,
   secret: Uint8Array
 ) {
-  const dataBytes = util.decodeUTF8(JSON.stringify(obj));
+  const dataBytes = util.decodeUTF8(message);
   return nacl.secretbox(dataBytes, nonce, secret);
 }
 
@@ -94,14 +94,32 @@ export function decryptMessage(
   return JSON.parse(util.encodeUTF8(decrypted));
 }
 
+export function encryptSecretForRevealer(
+  messageSecret: Uint8Array,
+  nonce: Uint8Array,
+  revealerPublicKey: Uint8Array,
+  secretKey: Uint8Array
+) {
+  return nacl.box(messageSecret, nonce, revealerPublicKey, secretKey);
+}
+
+export function buildKeyPairFromSecret(secretKey: Uint8Array) {
+  const { publicKey } = nacl.box.keyPair.fromSecretKey(secretKey);
+  return { publicKey, secretKey };
+}
+
 export function createSecretFragments(
   secret: Uint8Array,
   minFragments: number,
   totalFragments: number
 ) {
   const secretKey = bytesToHex(secret).substring(2); // Remove 0x
-  console.log("createSecretFragments", secretKey);
-  return secrets.share(secretKey, minFragments, totalFragments);
+  const hexShares: string[] = secrets.share(
+    secretKey,
+    minFragments,
+    totalFragments
+  );
+  return hexShares.map(hex => hexToBytes(hex));
 }
 
 export function combineSecretFragments(fragments: Array<string>) {
