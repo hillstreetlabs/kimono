@@ -64,7 +64,9 @@ export default class Store {
     }
 
     if (this.kimonoReady && this.currentUser && this.currentUser.address) {
-      // TODO: some user setup from contract
+      this.currentUser.balance = await this.kimono.getCoinBalance(
+        this.currentUser.address
+      );
       this.loadingCurrentUser = false;
     }
 
