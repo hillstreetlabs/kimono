@@ -221,7 +221,9 @@ export default class Revealer {
       );
       if (
         crypto.bytesToHex(crypto.bnToBytes(contractHash, 32)) !==
-        crypto.bytesToHex(crypto.sha3(this.fragmentsByNonce[message.nonceHex]))
+        crypto.bytesToHex(
+          crypto.keccak256(this.fragmentsByNonce[message.nonceHex])
+        )
       )
         throw new Error("Hash doesn't match hash on contract");
     } catch (e) {
