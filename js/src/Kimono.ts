@@ -35,6 +35,7 @@ interface KimonoCoinContract {
   address: string;
   decodeLogs(logs: any): any;
   balanceOf(address: string): Promise<{ 0: BN }>;
+  faucet(opts?: any): Promise<boolean>;
 }
 
 interface Message {
@@ -102,6 +103,11 @@ export default class Kimono {
   async getCoinBalance(address: string): Promise<BN> {
     const response = await this.kimonoCoin.balanceOf(address);
     return response[0];
+  }
+
+  async faucet(opts?: Object): Promise<boolean> {
+    const response = await this.kimonoCoin.faucet(opts || {});
+    return response;
   }
 
   // Return all eligible revealers from contract
