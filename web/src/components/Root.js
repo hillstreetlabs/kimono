@@ -7,6 +7,8 @@ import Landing from "./Landing";
 import FAQ from "./FAQ";
 import AddMessage from "./AddMessage";
 import ViewMessage from "./ViewMessage";
+import Faucet from "./Faucet";
+
 
 import styled from "react-emotion";
 import { basePadding, colors } from "../styles";
@@ -49,6 +51,7 @@ export class App extends Component {
       <div>
         <Switch>
           <Route path="/add" component={AddMessage} />
+          <Route path="/faucet" component={Faucet} />
           <Route path="/:messageId" component={ViewMessage} />
           <Redirect to="/" />
         </Switch>
