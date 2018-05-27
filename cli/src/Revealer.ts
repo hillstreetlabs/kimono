@@ -46,6 +46,8 @@ interface KimonoContract {
   ) => Promise<string>;
   getMessageNoncesForRevealer: (address: string) => Promise<{ nonces: BN[] }>;
   getMessage: (nonce: BN) => Promise<IContractMessage>;
+  messageToRevealerToFragments: (nonce: BN, address: string) => Promise<BN[]>;
+  revealFragment: (nonce: BN, fragment: BN, opts?: any) => Promise<string>;
 }
 
 interface KimonoCoinContract {
@@ -163,16 +165,28 @@ export default class Revealer {
   async addMessage(message: Message) {
     // Don't add the same message twice
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) return;
-    this.messages.push(message);
+
+    // Check whether we have revealed a fragment for this message already
+    const [revealedFragment] = await this.contract.messageToRevealerToFragments(
+      crypto.bytesToBn(message.nonce),
+      this.address
+    );
+    if (revealedFragment.gt(new BN(0))) {
+      // We've revealed this fragment, don't add this message
+      return;
+    }
+
+    // Grab IPFS data
     try {
-      // Grab IPFS data
       const content: { [address: string]: string } = await ipfs.getJson(
         message.encryptedFragmentsIpfsHash
       );
+      console.log(content);
       this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
         content[this.address]
       ); // Still encrypted
     } catch (e) {
+      console.warn(e);
       this.debug(
         "Warning: got invalid IPFS content for message",
         message.nonceHex,
@@ -180,25 +194,66 @@ export default class Revealer {
       );
     }
 
+    // Add the message to our message list
+    this.messages.push(message);
+
     // Find which block to reveal message at
     // Store that block and wait for it
   }
 
   async onAddBlock(rawBlock: Block) {
+    this.debug("Adding block ", rawBlock.number);
     // Check if there are new messages
     const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
     const events = await eventsFromBlock(this.eth, this.contract, block);
-    events
-      .filter(event => event._eventName === "MessageCreation")
-      .forEach((event: MessageCreationEvent) => {
-        this.debug("Got message creation", event);
-      });
+    await Promise.all(
+      events
+        .filter(event => event._eventName === "MessageCreation")
+        .map(async (event: MessageCreationEvent) => {
+          const message = await this.contract.getMessage(event.nonce);
+          this.addMessage(Message.fromContract(message));
+        })
+    );
 
     // Check if we should reveal any messages
-    this.messages.forEach(message => {
-      if (message.revealBlock <= rawBlock.number.toNumber()) {
-        console.log("We should reveal", message);
-      }
+    const messagesToRemove: Message[] = [];
+
+    await Promise.all(
+      this.messages.map(async message => {
+        console.log(
+          "Checking if message should be revealed",
+          message.revealBlock,
+          rawBlock.number
+        );
+        if (rawBlock.number >= message.revealBlock + message.revealPeriod) {
+          // Forget this message, we missed it
+          messagesToRemove.push(message);
+          return;
+        }
+        if (
+          rawBlock.number >= message.revealBlock &&
+          rawBlock.number <= message.revealBlock + message.revealPeriod
+        ) {
+          console.log("We should reveal", message);
+          await this.contract.revealFragment(
+            crypto.bytesToBn(message.nonce),
+            crypto.bytesToBn(
+              crypto.hexToBytes(
+                "0x0000000000000000000000000000000000000000000000000000000000000000"
+              )
+            ),
+            {
+              from: this.address,
+              gas: GAS_LIMIT
+            }
+          );
+        }
+      })
+    );
+
+    // Remove old messages
+    messagesToRemove.forEach(message => {
+      this.messages.splice(this.messages.indexOf(message), 1);
     });
   }
 
