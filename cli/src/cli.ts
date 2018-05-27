@@ -5,7 +5,6 @@ import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
 import Eth from "ethjs-query";
-import BN from "bn.js";
 import createProvider from "./util/createProvider";
 import advanceBlock from "./util/advanceBlock";
 

@@ -67,13 +67,21 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event FragmentReveal(
     uint256 nonce,
     address revealer,
+<<<<<<< HEAD
+=======
+    bytes1[50] fragment,
+>>>>>>> Downloading fragments working
     uint8 minFragments,
     uint8 onTimeRevealerCount,
     bytes fragment
   );
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
+<<<<<<< HEAD
   event TattleTale(uint256 nonce, address tattler, address tattlee, bytes fragment);
+=======
+  event TattleTale(address tattler, address tattlee, bytes1[50] fragment);
+>>>>>>> Downloading fragments working
 
   // nonce => revealerAddress => balance
 
@@ -127,8 +135,12 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     _;
   }
 
+<<<<<<< HEAD
   modifier withValidFragment(uint256 _nonce, bytes _fragment, address revealer) {
     Fragment memory fragment = splitBytesToFragment(_fragment);
+=======
+  modifier withValidFragment(uint256 _nonce, bytes1[50] _fragment, address revealer) {
+>>>>>>> Downloading fragments working
     require(
       bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) == keccak256(fragment.piece1, fragment.piece2),
       "Revealer submitted an invalid fragment."
@@ -266,6 +278,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
   }
 
+<<<<<<< HEAD
   function splitBytesToFragment(bytes _fragment) internal view returns (Fragment) {
     bytes32 piece1;
     bytes18 piece2;
@@ -280,6 +293,9 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   }
 
   function revealFragment(uint256 _nonce, bytes _fragment)
+=======
+  function revealFragment(uint256 _nonce, bytes1[50] _fragment)
+>>>>>>> Downloading fragments working
     public
     messageExists(_nonce)
     afterRevealPeriodStarts(_nonce)
@@ -325,7 +341,11 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit SecretReveal(_nonce, msg.sender, _secret);
   }
 
+<<<<<<< HEAD
   function tattle(uint256 _nonce, bytes _fragment, address _tattlee)
+=======
+  function tattle(uint256 _nonce, bytes1[50] _fragment, address _tattlee)
+>>>>>>> Downloading fragments working
     public
     messageExists(_nonce)
     withValidFragment(_nonce, _fragment, _tattlee)
@@ -449,5 +469,13 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   function getEligibleRevealersCount() external view returns(uint256 count) {
     return eligibleRevealers.length;
+  }
+
+  function getFragmentByMessageAndRevealer(uint256 _nonce, address _revealer)
+    external
+    view
+    returns(bytes1[50] fragment)
+  {
+    return messageToRevealerToFragments[_nonce][_revealer];
   }
 }

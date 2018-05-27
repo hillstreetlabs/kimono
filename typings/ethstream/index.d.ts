@@ -1,6 +1,5 @@
 declare module "ethstream" {
-  import EthjsHttpProvider = require("ethjs-provider-http");
-  import { Block } from "ethjs-shared";
+  import { Block, IProvider } from "ethjs-shared";
 
   type EthstreamProps = {
     onAddBlock?: (block: Block) => void;
@@ -12,7 +11,7 @@ declare module "ethstream" {
   };
 
   export default class Ethstream {
-    constructor(provider: EthjsHttpProvider, props: EthstreamProps);
+    constructor(provider: IProvider, props: EthstreamProps);
 
     start();
     stop();

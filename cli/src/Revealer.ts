@@ -46,7 +46,10 @@ interface KimonoContract {
   ) => Promise<string>;
   getMessageNoncesForRevealer: (address: string) => Promise<{ nonces: BN[] }>;
   getMessage: (nonce: BN) => Promise<IContractMessage>;
-  messageToRevealerToFragments: (nonce: BN, address: string) => Promise<BN[]>;
+  getFragmentByMessageAndRevealer: (
+    nonce: BN,
+    address: string
+  ) => Promise<{ fragment: string[] }>;
   revealFragment: (nonce: BN, fragment: BN, opts?: any) => Promise<string>;
 }
 
@@ -88,7 +91,7 @@ export default class Revealer {
     });
     this.eth = new Eth(this.provider);
     const accounts = await this.eth.accounts();
-    this.address = accounts[0];
+    this.address = accounts[0].toLowerCase();
 
     this.contract = await getContract<KimonoContract>(this.eth, kimono);
     this.coinContract = await getContract<KimonoCoinContract>(
@@ -167,30 +170,50 @@ export default class Revealer {
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) return;
 
     // Check whether we have revealed a fragment for this message already
-    const [revealedFragment] = await this.contract.messageToRevealerToFragments(
+    const { fragment } = await this.contract.getFragmentByMessageAndRevealer(
       crypto.bytesToBn(message.nonce),
       this.address
     );
-    if (revealedFragment.gt(new BN(0))) {
+    const revealedFragment = crypto.bytesToShare(
+      crypto.hexArrayToBytes(fragment)
+    );
+    if (
+      revealedFragment !==
+      "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    ) {
       // We've revealed this fragment, don't add this message
       return;
     }
 
     // Grab IPFS data
     try {
-      const content: { [address: string]: string } = await ipfs.getJson(
-        message.encryptedFragmentsIpfsHash
+      const content: {
+        secretFragments: { [address: string]: string };
+        publicKey: string;
+      } = await ipfs.getJson(message.encryptedFragmentsIpfsHash);
+      console.log(content.secretFragments, this.address);
+      const senderPublicKey = crypto.hexToBytes(content.publicKey);
+      const encryptedFragment = crypto.hexToBytes(
+        content.secretFragments[this.address]
       );
-      console.log(content);
-      this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
-        content[this.address]
-      ); // Still encrypted
+      console.log(
+        senderPublicKey,
+        encryptedFragment,
+        crypto.bytesToShare(
+          crypto.decryptSecretForRevealer(
+            encryptedFragment,
+            message.nonce,
+            senderPublicKey,
+            this.secretKey
+          )
+        )
+      );
     } catch (e) {
       console.warn(e);
       this.debug(
         "Warning: got invalid IPFS content for message",
         message.nonceHex,
-        new Uint8Array(await ipfs.get(message.encryptedFragmentsIpfsHash))
+        message.encryptedFragmentsIpfsHash
       );
     }
 
