@@ -22,11 +22,27 @@ interface KimonoContract {
     encryptedFragmentsIPFSHash: string,
     opts?: any
   ) => Promise<string>;
+  getMessage: (nonce: string) => Promise<any>;
   getEligibleRevealersCount: () => Promise<any>;
   eligibleRevealers(index: number): Promise<any>;
   revealerTable(address: string): Promise<any>;
   decodeLogs(logs: any): any;
   address: string;
+}
+
+interface Message {
+  nonce: string;
+  creator: string;
+  secretConstructor: string;
+  minFragments: number;
+  totalFragments: number;
+  revealBlock: number;
+  revealPeriod: number;
+  revealSecret: string;
+  hashOfRevealSecret: string;
+  timeLockReward: BN;
+  encryptedMessage: string;
+  encryptedFragments: SecretFragmentsIpfsData;
 }
 
 interface Revealer {
@@ -100,9 +116,40 @@ export default class Kimono {
     return filteredAndOrderedRevealers.slice(0, numRevealers);
   }
 
-  async getMessage(nonce: string) {
-    const response = await this.kimono.getMessage(nonce);
-    return response;
+  async getMessage(messageId: string): Promise<Message> {
+    const response = await this.kimono.getMessage(messageId);
+    const {
+      nonce,
+      creator,
+      secretConstructor,
+      minFragments,
+      totalFragments,
+      revealBlock,
+      revealPeriod,
+      revealSecret,
+      hashOfRevealSecret,
+      timeLockReward,
+      encryptedMessage,
+      encryptedFragments
+    } = response;
+    // const encryptedMessageData = ipfs.get(encryptedMessage);
+    return {
+      nonce,
+      creator,
+      secretConstructor:
+        secretConstructor != "0x0000000000000000000000000000000000000000"
+          ? secretConstructor
+          : null,
+      minFragments: minFragments.toNumber(),
+      totalFragments: totalFragments.toNumber(),
+      revealBlock: revealBlock.toNumber(),
+      revealPeriod: revealPeriod.toNumber(),
+      revealSecret: revealSecret != "0" ? revealSecret : null,
+      hashOfRevealSecret,
+      timeLockReward,
+      encryptedMessage: encryptedMessage,
+      encryptedFragments: encryptedFragments
+    };
   }
 
   async createMessage(
