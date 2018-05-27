@@ -109,11 +109,12 @@ export function buildMessageSecret(
 }
 
 export function encryptMessage(
-  message: string,
+  message: string | Uint8Array,
   nonce: Uint8Array,
   secret: Uint8Array
 ) {
-  const dataBytes = util.decodeUTF8(message);
+  const dataBytes =
+    typeof message === "string" ? util.decodeUTF8(message) : message;
   return nacl.secretbox(dataBytes, nonce, secret);
 }
 
