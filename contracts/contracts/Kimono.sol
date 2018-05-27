@@ -36,12 +36,17 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     uint256 stakePerMessage;
   }
 
+  struct Fragment {
+    bytes32 piece1;
+    bytes18 piece2;
+  }
+
   uint40 constant MINIMUM_REVEAL_PERIOD_LENGTH = 10; // in blocks
 
   mapping (uint256 => Message) public nonceToMessage;
   mapping (address => uint256[]) public revealerToMessages;
   mapping (uint256 => address[]) public messageToRevealers;
-  mapping (uint256 => mapping(address => bytes1[49])) public messageToRevealerToFragments;
+  mapping (uint256 => mapping(address => Fragment)) public messageToRevealerToFragments;
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments;
   mapping (uint256 => mapping(address => RevealStatus)) public messageToRevealerToRevealStatus;
   mapping(address => Revealer) public revealerTable;
@@ -62,13 +67,13 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   event FragmentReveal(
     uint256 nonce,
     address revealer,
-    bytes1[49] fragment,
     uint8 minFragments,
-    uint8 onTimeRevealerCount
+    uint8 onTimeRevealerCount,
+    bytes fragment
   );
   event SecretReveal(uint256 nonce, address revealer, uint256 secret);
   event StakeWithdrawal(address withdrawer, uint256 amount);
-  event TattleTale(address tattler, address tattlee, bytes1[49] fragment);
+  event TattleTale(uint256 nonce, address tattler, address tattlee, bytes fragment);
 
   // nonce => revealerAddress => balance
 
@@ -122,9 +127,10 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     _;
   }
 
-  modifier withValidFragment(uint256 _nonce, bytes1[49] _fragment, address revealer) {
+  modifier withValidFragment(uint256 _nonce, bytes _fragment, address revealer) {
+    Fragment memory fragment = splitBytesToFragment(_fragment);
     require(
-      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) == keccak256(_fragment),
+      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) == keccak256(fragment.piece1, fragment.piece2),
       "Revealer submitted an invalid fragment."
     );
     _;
@@ -260,7 +266,20 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     }
   }
 
-  function revealFragment(uint256 _nonce, bytes1[49] _fragment)
+  function splitBytesToFragment(bytes _fragment) internal view returns (Fragment) {
+    bytes32 piece1;
+    bytes18 piece2;
+    assembly {
+      mstore(piece1, _fragment)
+      mstore(add(piece1, 32), _fragment)
+    }
+    return Fragment({
+      piece1: piece1,
+      piece2: piece2
+    });
+  }
+
+  function revealFragment(uint256 _nonce, bytes _fragment)
     public
     messageExists(_nonce)
     afterRevealPeriodStarts(_nonce)
@@ -273,7 +292,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     );
 
     messageToRevealerToHashOfFragments[_nonce][msg.sender] = uint256(0);
-    messageToRevealerToFragments[_nonce][msg.sender] = _fragment;
+    messageToRevealerToFragments[_nonce][msg.sender] = splitBytesToFragment(_fragment);
 
     // Message is not revealed
     if (nonceToMessage[_nonce].secretConstructor == address(0)) {
@@ -284,7 +303,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       messageToRevealerToRevealStatus[_nonce][msg.sender] = RevealStatus.Late;
     }
 
-    emit FragmentReveal(_nonce, msg.sender, _fragment, message.minFragments, message.onTimeRevealerCount);
+    emit FragmentReveal(_nonce, msg.sender, message.minFragments, message.onTimeRevealerCount, _fragment);
   }
 
   function submitRevealSecret(uint256 _nonce, uint256 _secret)
@@ -306,7 +325,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     emit SecretReveal(_nonce, msg.sender, _secret);
   }
 
-  function tattle(uint256 _nonce, bytes1[49] _fragment, address _tattlee)
+  function tattle(uint256 _nonce, bytes _fragment, address _tattlee)
     public
     messageExists(_nonce)
     withValidFragment(_nonce, _fragment, _tattlee)
@@ -316,10 +335,10 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     messageToRevealerToStake[_nonce][_tattlee] = 0;
 
     messageToRevealerToHashOfFragments[_nonce][_tattlee] = uint256(0);
-    messageToRevealerToFragments[_nonce][_tattlee] = _fragment;
+    messageToRevealerToFragments[_nonce][_tattlee] = splitBytesToFragment(_fragment);
 
     require(KimonoCoin(kimonoCoinAddress).transferFrom(address(this), msg.sender, balance));
-    emit TattleTale(msg.sender, _tattlee, _fragment);
+    emit TattleTale(_nonce, msg.sender, _tattlee, _fragment);
   }
 
   function withdrawStake(uint256 _nonce)
