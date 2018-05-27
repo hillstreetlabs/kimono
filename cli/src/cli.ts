@@ -39,6 +39,34 @@ program
     });
   });
 
+function getTestCombiners(number?: number) {
+  const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+  number = number || privateKeys.length;
+  const combiners: Combiner[] = new Array(number)
+    .fill(0)
+    .map(
+      (_, i) =>
+        new Combiner(createProvider(privateKeys[i], process.env.JSON_RPC_URL))
+    );
+  return combiners;
+}
+
+program
+  .command("combine:test")
+  .description("Start N combiners for testing")
+  .option("-N, --number <x>", "Number of combiners to launch", parseInt)
+  .action(async (options: { number: number }) => {
+    const combiners = getTestCombiners(options.number);
+    combiners.forEach(async combiner => {
+      await combiner.start();
+    });
+
+    process.on("SIGINT", async () => {
+      await Promise.all(combiners.map(combiner => combiner.exit()));
+      process.exit();
+    });
+  });
+
 program
   .command("advanceBlock")
   .description("Adds a block every N milliseconds")

@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "../typings/**/*.ts"]
+  "include": ["src/**/*.ts", "../typings/**/*.ts", "../js/**/*.ts"]
 }

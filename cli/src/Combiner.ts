@@ -4,18 +4,13 @@ import Eth from "ethjs-query";
 import EthContract from "ethjs-contract";
 import BN from "bn.js";
 import kimono from "../../contracts/build/contracts/Kimono.json";
-import kimonoCoin from "../../contracts/build/contracts/KimonoCoin.json";
 import { IProvider } from "ethjs-shared";
 import createProvider from "./util/createProvider";
-import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
 import { eventsFromBlock } from "./util/events";
 import Message, { IContractMessage } from "./Message";
-import * as ipfs from "./util/ipfs";
 
 const GAS_LIMIT = 500000;
-const NULL_PUBLIC_KEY =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function getContract<T>(eth: Eth, contractObj: any) {
   try {
@@ -64,10 +59,8 @@ export default class Combiner {
   messages: Message[] = [];
   fragmentsByNonce: { [nonce: string]: string[] } = {};
 
-  constructor(secretKey: string, rpcUrl: string) {
-    this.secretKey = crypto.hexToBytes(secretKey);
-    this.publicKey = crypto.secretKeyToPublicKey(this.secretKey);
-    this.provider = createProvider(secretKey, rpcUrl);
+  constructor(provider: IProvider) {
+    this.provider = provider;
   }
 
   async setup() {
@@ -83,6 +76,7 @@ export default class Combiner {
   }
 
   async start() {
+    console.log("HELLOOO");
     if (!this.isSetup) await this.setup();
     this.debug("Starting Kimono Combiner with address", this.address);
     this.ethstream.start();
@@ -102,12 +96,16 @@ export default class Combiner {
   async addMessageFragment(message: Message, event: FragmentRevealEvent) {
     // For now: only add messages that just got the first reveal.
     // Add fragments for messages that are in the messages.
-    if (event.onTimeRevealerCount == 1) this.addMessage(message);
+    if (event.onTimeRevealerCount.toNumber() == 1) this.addMessage(message);
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) {
       if (this.fragmentsByNonce[message.nonceHex].length === 0) {
-        this.fragmentsByNonce[message.nonceHex] = [event.fragment];
+        this.fragmentsByNonce[message.nonceHex] = [
+          crypto.bytesToShare(crypto.hexToBytes(event.fragment))
+        ];
       } else {
-        this.fragmentsByNonce[message.nonceHex].push(event.fragment);
+        this.fragmentsByNonce[message.nonceHex].push(
+          crypto.bytesToShare(crypto.hexToBytes(event.fragment))
+        );
       }
     }
   }
@@ -124,9 +122,9 @@ export default class Combiner {
     await Promise.all(
       events
         .filter(event => event._eventName === "SecretReveal")
-        .map(async (event: SecretReveal) => {
+        .map(async (event: SecretRevealEvent) => {
           const message = await this.contract.getMessage(event.nonce);
-          messagesToRemove.push(message);
+          messagesToRemove.push(Message.fromContract(message));
         })
     );
 
@@ -136,7 +134,7 @@ export default class Combiner {
 
     await Promise.all(
       events
-        .filter(event => event._eventName === "FragmentRevealEvent")
+        .filter(event => event._eventName === "FragmentReveal")
         .map(async (event: FragmentRevealEvent) => {
           const message = await this.contract.getMessage(event.nonce);
           this.addMessageFragment(Message.fromContract(message), event);
@@ -161,66 +159,10 @@ export default class Combiner {
           message.minFragments <= this.fragmentsByNonce[message.nonceHex].length
         ) {
           console.log("We should re-construct", message);
-          await this.contract.revealFragment(
+          await this.contract.submitRevealSecret(
             crypto.bytesToBn(message.nonce),
-            crypto.bytesToBn(
-              crypto.hexToBytes(
-                "0x0000000000000000000000000000000000000000000000000000000000000000"
-              )
-            ),
-            {
-              from: this.address,
-              gas: GAS_LIMIT
-            }
-          );
-        }
-      })
-    );
-
-    // Remove old messages
-    messagesToRemove.forEach(message => {
-      this.messages.splice(this.messages.indexOf(message), 1);
-    });
-  }
-
-  async onAddBlock(rawBlock: Block) {
-    this.debug("Adding block ", rawBlock.number);
-    // Check if there are new messages and fragments
-    const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
-    const events = await eventsFromBlock(this.eth, this.contract, block);
-    await Promise.all(
-      events
-        .filter(event => event._eventName === "MessageCreation")
-        .map(async (event: MessageCreationEvent) => {
-          const message = await this.contract.getMessage(event.nonce);
-          this.addMessage(Message.fromContract(message));
-        })
-    );
-
-    // Check if we should reveal any messages
-    const messagesToRemove: Message[] = [];
-
-    await Promise.all(
-      this.messages.map(async message => {
-        console.log(
-          "Checking if message should be revealed",
-          message.revealBlock,
-          rawBlock.number
-        );
-        if (rawBlock.number >= message.revealBlock + message.revealPeriod) {
-          // Forget this message, we missed it
-          messagesToRemove.push(message);
-          return;
-        }
-        if (
-          rawBlock.number >= message.revealBlock &&
-          rawBlock.number <= message.revealBlock + message.revealPeriod
-        ) {
-          console.log("We should reveal BOOM", message);
-          await this.contract.revealFragment(
-            crypto.bytesToBn(message.nonce),
-            crypto.bytesToHex(
-              crypto.sha3(this.fragmentsByNonce[message.nonceHex])
+            crypto.combineSecretFragments(
+              this.fragmentsByNonce[message.nonceHex]
             ),
             {
               from: this.address,

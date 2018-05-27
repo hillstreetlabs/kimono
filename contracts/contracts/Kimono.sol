@@ -484,4 +484,13 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     Fragment memory fragment = splitBytesToFragment(_fragment);
     return keccak256(fragment.piece1, fragment.piece2);
   }
+
+  function test_compareFragmentHash(uint256 fragmentHash, bytes _fragment) external view returns (bytes32 hash, bytes32 realHash, bool isEqual) {
+    Fragment memory fragment = splitBytesToFragment(_fragment);
+    return (
+      bytes32(fragmentHash),
+      keccak256(fragment.piece1, fragment.piece2),
+      bytes32(fragmentHash) == keccak256(fragment.piece1, fragment.piece2)
+    );
+  }
 }

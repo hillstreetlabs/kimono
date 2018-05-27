@@ -34,18 +34,6 @@ export function bytesToShare(bytes: Uint8Array): string {
   return bits.toString(36) + idByte + bytesToHex(data).substr(2);
 }
 
-console.log(
-  "801b582607fffc74d6d8e5964fa081cd644d3df850413200d82fbe8dd31b97fe6a36560dce0ed92c358e517d9b1ff2c7fab",
-  shareToBytes(
-    "801b582607fffc74d6d8e5964fa081cd644d3df850413200d82fbe8dd31b97fe6a36560dce0ed92c358e517d9b1ff2c7fab"
-  ),
-  bytesToShare(
-    shareToBytes(
-      "801b582607fffc74d6d8e5964fa081cd644d3df850413200d82fbe8dd31b97fe6a36560dce0ed92c358e517d9b1ff2c7fab"
-    )
-  )
-);
-
 if (
   bytesToShare(
     shareToBytes(
@@ -164,6 +152,10 @@ export function decryptSecretForRevealer(
 export function buildKeyPairFromSecret(secretKey: Uint8Array) {
   const { publicKey } = nacl.box.keyPair.fromSecretKey(secretKey);
   return { publicKey, secretKey };
+}
+
+export function secretKeyToPublicKey(secret: Uint8Array) {
+  return buildKeyPairFromSecret(secret).publicKey;
 }
 
 export function createSecretFragments(
