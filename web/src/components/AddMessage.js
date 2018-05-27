@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import { inject, observer } from "mobx-react";
 import { action, observable } from "mobx";
 import { Link } from "react-router-dom";
+import Eth from "ethjs";
 import Spacer from "./Spacer";
 import Button from "./Button";
 import Input from "./Input";
@@ -54,7 +55,7 @@ export default class AddMessage extends Component {
     messageContent: "",
     minFragments: 3,
     totalFragments: 5,
-    reward: new BN(10000)
+    rewardRaw: 100
   };
   @observable transactionHash = null;
   @observable isFile = false;
@@ -77,7 +78,10 @@ export default class AddMessage extends Component {
   async createMessage() {
     this.createMessageStatus = "preparing";
     const response = await this.props.store.kimono.createMessage(
-      this.newMessage,
+      {
+        ...this.newMessage,
+        reward: Eth.toWei(this.newMessage.rewardRaw, "ether")
+      },
       { from: this.props.store.currentUser.address }
     );
     this.createMessageStatus = "confirming";
@@ -111,6 +115,10 @@ export default class AddMessage extends Component {
     this.newMessage.minFragments = parseInt(e.target.value);
   }
 
+  handleRewardChange(e) {
+    this.newMessage.rewardRaw = parseInt(e.target.value);
+  }
+
   toggleAdvancedOptions() {
     this.showAdvancedOptions = !this.showAdvancedOptions;
   }
@@ -138,6 +146,18 @@ export default class AddMessage extends Component {
                 Generate signature
               </Button>
             )}
+          </div>
+          <Spacer />
+          <div>
+            <h3>OPEN token balance</h3>
+            <Spacer size={0.5} />
+            <p>
+              {Eth.fromWei(
+                this.props.store.currentUser.balance,
+                "ether"
+              ).toString()}{" "}
+              OPEN tokens
+            </p>
           </div>
           <Spacer />
           <div>
@@ -176,6 +196,15 @@ export default class AddMessage extends Component {
           {this.showAdvancedOptions && (
             <div>
               <div>
+                <h3>Revealers reward (in OPEN tokens)</h3>
+                <Spacer size={0.5} />
+                <Input
+                  onChange={e => this.handleRewardChange(e)}
+                  value={this.newMessage.rewardRaw}
+                />
+              </div>
+              <Spacer />
+              <div>
                 <h3>Total secret fragments:</h3>
                 <Spacer size={0.5} />
                 <Input
@@ -204,7 +233,9 @@ export default class AddMessage extends Component {
               loading={this.createMessageStatus != "none"}
             >
               {this.createMessageStatus === "none" && (
-                <span>Create message &rarr;</span>
+                <span>
+                  Create message for {this.newMessage.rewardRaw} OPEN &rarr;
+                </span>
               )}
               {this.createMessageStatus === "preparing" && (
                 <span>Preparing message...</span>

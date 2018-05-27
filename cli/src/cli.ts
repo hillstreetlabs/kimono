@@ -7,6 +7,9 @@ import Combiner from "./Combiner";
 import Eth from "ethjs-query";
 import createProvider from "./util/createProvider";
 import advanceBlock from "./util/advanceBlock";
+import EthContract from "ethjs-contract";
+import kimono from "../../contracts/build/contracts/Kimono.json";
+import kimonoCoin from "../../contracts/build/contracts/KimonoCoin.json";
 
 program
   .command("reveal")
@@ -40,13 +43,17 @@ program
   });
 
 function getTestCombiners(number?: number) {
-  const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+  const privateKeys: string[] = process.env.TEST_COMBINER_PRIVATE_KEYS.split(
+    ","
+  );
   number = number || privateKeys.length;
   const combiners: Combiner[] = new Array(number)
     .fill(0)
     .map(
       (_, i) =>
-        new Combiner(createProvider(privateKeys[i], process.env.JSON_RPC_URL))
+        new Combiner(
+          createProvider(privateKeys[i], process.env.TEST_JSON_RPC_URL)
+        )
     );
   return combiners;
 }
@@ -100,7 +107,9 @@ program
   });
 
 function getTestRevealers(number?: number) {
-  const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+  const privateKeys: string[] = process.env.TEST_REVEALER_PRIVATE_KEYS.split(
+    ","
+  );
   number = number || privateKeys.length;
   const revealers: Revealer[] = new Array(number)
     .fill(0)
@@ -150,5 +159,52 @@ program
       });
     }
   );
+
+program
+  .command("approveAll")
+  .description("Start N revealers for testing")
+  .action(async () => {
+    async function getContract<T>(eth: Eth, contractObj: any) {
+      try {
+        const networkVersion = await eth.net_version();
+        const builder = EthContract(eth)<T>(contractObj.abi);
+        const contract = builder.at(
+          contractObj.networks[networkVersion].address
+        );
+        if (!contract) throw new Error("Something went wrong");
+        return contract;
+      } catch (e) {
+        throw new Error(
+          "Something went wrong finding the contract on the network. Are you sure it's deployed?"
+        );
+      }
+    }
+
+    interface KimonoCoinContract {
+      address: string;
+      approveAll: (address: string, opts?: any) => Promise<string>;
+    }
+
+    await Promise.all(
+      process.env.TEST_PRIVATE_KEYS.split(",").map(async privateKey => {
+        const provider = createProvider(
+          privateKey,
+          process.env.TEST_JSON_RPC_URL
+        );
+        const eth = new Eth(provider);
+        const accounts = await eth.accounts();
+        const address = accounts[0].toLowerCase();
+        const kimonoContract = await getContract<any>(eth, kimono);
+        const coinContract = await getContract<KimonoCoinContract>(
+          eth,
+          kimonoCoin
+        );
+        await coinContract.approveAll(kimonoContract.address, {
+          from: address,
+          gas: 500000
+        });
+      })
+    );
+  });
 
 program.parse(process.argv);
