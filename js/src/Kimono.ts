@@ -6,6 +6,7 @@ import BN from "bn.js";
 import * as ipfs from "./ipfs";
 import * as crypto from "./crypto";
 import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
+import KimonoCoinBuild from "../../contracts/build/contracts/KimonoCoin.json";
 
 interface KimonoContract {
   createMessage: (
@@ -22,11 +23,32 @@ interface KimonoContract {
     encryptedFragmentsIPFSHash: string,
     opts?: any
   ) => Promise<string>;
+  getMessage: (nonce: string) => Promise<any>;
   getEligibleRevealersCount: () => Promise<any>;
   eligibleRevealers(index: number): Promise<any>;
   revealerTable(address: string): Promise<any>;
   decodeLogs(logs: any): any;
   address: string;
+}
+
+interface KimonoCoinContract {
+  address: string;
+  decodeLogs(logs: any): any;
+  balanceOf(address: string): Promise<{ 0: BN }>;
+}
+
+interface Message {
+  nonce: string;
+  creator: string;
+  secretConstructor: string;
+  minFragments: number;
+  totalFragments: number;
+  revealBlock: number;
+  revealPeriod: number;
+  hashOfRevealSecret: string;
+  timeLockReward: BN;
+  encryptedFragments: SecretFragmentsIpfsData;
+  messageContent?: string;
 }
 
 interface Revealer {
@@ -44,6 +66,7 @@ interface SecretFragmentsIpfsData {
 export default class Kimono {
   eth: Eth;
   kimono: KimonoContract;
+  kimonoCoin: KimonoCoinContract;
 
   constructor(provider: HttpProvider, networkVersion: string) {
     // Check web3 provider
@@ -52,6 +75,7 @@ export default class Kimono {
         "web3 provider must be specified (e.g. `new Kimono(new HttpProvider('http://localhost:8545'))`)"
       );
     this.eth = new Eth(provider);
+    // Init Kimono contract instance
     const kimonoAddress = (KimonoBuild.networks[networkVersion] || {}).address;
     if (!kimonoAddress)
       throw new Error(
@@ -61,10 +85,23 @@ export default class Kimono {
       kimonoAddress
     );
     this.kimono.decodeLogs = logs => EthAbi.logDecoder(KimonoBuild.abi)(logs);
+    // Init KimonoCoin contract instance
+    const kimonoCoinAddress = (KimonoCoinBuild.networks[networkVersion] || {})
+      .address;
+    if (!kimonoCoinAddress)
+      throw new Error(
+        "KimonoCoin smart contract not found. Try another Ethereum network."
+      );
+    this.kimonoCoin = EthContract(this.eth)<KimonoCoinContract>(
+      KimonoCoinBuild.abi
+    ).at(kimonoCoinAddress);
+    this.kimonoCoin.decodeLogs = logs =>
+      EthAbi.logDecoder(KimonoCoinBuild.abi)(logs);
   }
 
-  get address() {
-    return this.kimono.address;
+  async getCoinBalance(address: string): Promise<BN> {
+    const response = await this.kimonoCoin.balanceOf(address);
+    return response[0];
   }
 
   // Return all eligible revealers from contract
@@ -98,6 +135,41 @@ export default class Kimono {
       .filter((revealer: Revealer) => revealer.minReward.gte(minReward))
       .sort((a, b) => a.stakePerMessage.sub(b.stakePerMessage).toNumber());
     return filteredAndOrderedRevealers.slice(0, numRevealers);
+  }
+
+  async getMessage(messageId: string): Promise<Message> {
+    const response = await this.kimono.getMessage(messageId);
+    const {
+      nonce,
+      creator,
+      secretConstructor,
+      minFragments,
+      totalFragments,
+      revealBlock,
+      revealPeriod,
+      revealSecret,
+      hashOfRevealSecret,
+      timeLockReward,
+      encryptedFragments
+    } = response;
+    if (revealSecret != "0") {
+      // TODO: re-generate content
+    }
+    return {
+      nonce,
+      creator,
+      secretConstructor:
+        secretConstructor != "0x0000000000000000000000000000000000000000"
+          ? secretConstructor
+          : null,
+      minFragments: minFragments.toNumber(),
+      totalFragments: totalFragments.toNumber(),
+      revealBlock: revealBlock.toNumber(),
+      revealPeriod: revealPeriod.toNumber(),
+      hashOfRevealSecret,
+      timeLockReward,
+      encryptedFragments: encryptedFragments
+    };
   }
 
   async createMessage(

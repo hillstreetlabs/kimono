@@ -126,6 +126,7 @@ export default class AddMessage extends Component {
           <Spacer />
           <div>
             <h3>Author:</h3>
+            <Spacer size={0.5} />
             <p>{this.props.store.currentUser.address}</p>
           </div>
           <Spacer />
@@ -134,7 +135,7 @@ export default class AddMessage extends Component {
             <Spacer size={0.5} />
             {this.newMessage.secret || (
               <Button onClick={() => this.generateSecretKey()}>
-                Generate Secret
+                Generate signature
               </Button>
             )}
           </div>
@@ -174,24 +175,23 @@ export default class AddMessage extends Component {
           <Spacer />
           {this.showAdvancedOptions && (
             <div>
-              <Flex>
-                <div>
-                  <h3>Total secret fragments:</h3>
-                  <Spacer size={0.5} />
-                  <Input
-                    onChange={e => this.handleTotalFragmentsChange(e)}
-                    value={this.newMessage.totalFragments}
-                  />
-                </div>
-                <div>
-                  <h3>Minimum fragments needed to reconstruct:</h3>
-                  <Spacer size={0.5} />
-                  <Input
-                    onChange={e => this.handleMinFragmentsChange(e)}
-                    value={this.newMessage.minFragments}
-                  />
-                </div>
-              </Flex>
+              <div>
+                <h3>Total secret fragments:</h3>
+                <Spacer size={0.5} />
+                <Input
+                  onChange={e => this.handleTotalFragmentsChange(e)}
+                  value={this.newMessage.totalFragments}
+                />
+              </div>
+              <Spacer />
+              <div>
+                <h3>Minimum fragments needed to reconstruct:</h3>
+                <Spacer size={0.5} />
+                <Input
+                  onChange={e => this.handleMinFragmentsChange(e)}
+                  value={this.newMessage.minFragments}
+                />
+              </div>
               <Spacer />
             </div>
           )}

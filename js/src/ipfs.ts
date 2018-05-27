@@ -1,6 +1,13 @@
 import util from "tweetnacl-util";
+import * as crypto from "./crypto";
 
 const IPFS_RPC_URL = "https://ipfs.infura.io:5001";
+
+export type IpfsMultiHash = string;
+
+export function toIpfsHash(multiHash: IpfsMultiHash) {
+  return crypto.bytesToBase58(crypto.hexToBytes(multiHash));
+}
 
 export async function add(data: Uint8Array) {
   const formData = new FormData();
