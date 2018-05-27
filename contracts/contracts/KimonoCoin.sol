@@ -15,6 +15,7 @@ contract KimonoCoin is MintableToken, BurnableToken {
 
   event ApproveAll(address sender, address spender);
   event TestingDistributeTokens(address account, uint256 amount);
+  event Faucet(address account);
 
   // CONSTRUCTOR
 
@@ -49,6 +50,21 @@ contract KimonoCoin is MintableToken, BurnableToken {
       allowed[_from][msg.sender] -= _value;
     }
     emit Transfer(_from, _to, _value);
+    return true;
+  }
+
+  function faucet()
+    public
+    canMint
+    returns (bool)
+  {
+    uint256 tokensToMint = 1000 * 10 ** 18; // 1000 KimonoCoin
+    totalSupply_ = totalSupply_.add(tokensToMint);
+    balances[msg.sender] = balances[msg.sender].add(tokensToMint);
+
+    emit Mint(msg.sender, tokensToMint);
+    emit Transfer(address(0), msg.sender, tokensToMint);
+    emit Faucet(msg.sender);
     return true;
   }
 
