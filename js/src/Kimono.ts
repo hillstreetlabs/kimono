@@ -100,6 +100,11 @@ export default class Kimono {
     return filteredAndOrderedRevealers.slice(0, numRevealers);
   }
 
+  async getMessage(nonce: string) {
+    const response = await this.kimono.getMessage(nonce);
+    return response;
+  }
+
   async createMessage(
     props: {
       secret: string;
