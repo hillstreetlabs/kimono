@@ -113,6 +113,7 @@ export function encryptMessage(
   nonce: Uint8Array,
   secret: Uint8Array
 ) {
+  console.log("The message type", typeof message);
   const dataBytes =
     typeof message === "string" ? util.decodeUTF8(message) : message;
   return nacl.secretbox(dataBytes, nonce, secret);

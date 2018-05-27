@@ -6,6 +6,7 @@ import Spacer from "./Spacer";
 import Button from "./Button";
 import Input from "./Input";
 import Textarea from "./Textarea";
+import Upload from "./Upload";
 import BN from "bn.js";
 import { Container, Wrapper, HeaderLink } from "./Root";
 import styled, { keyframes } from "react-emotion";
@@ -56,6 +57,8 @@ export default class AddMessage extends Component {
     reward: new BN(10000)
   };
   @observable transactionHash = null;
+  @observable isFile = false;
+  fileSrc = null;
 
   componentDidMount() {
     this.getBlockNumber();
@@ -83,6 +86,13 @@ export default class AddMessage extends Component {
       log => log._eventName === "MessageCreation"
     )[0];
     this.props.history.push(`/${creationEvent.nonce.toString()}`);
+  }
+
+  @action
+  handleContentBytes(bytes, dataUrl) {
+    this.isFile = true;
+    this.fileSrc = dataUrl;
+    this.newMessage.messageContent = bytes;
   }
 
   handleContentChange(e) {
@@ -142,11 +152,24 @@ export default class AddMessage extends Component {
           <div>
             <h3>Message content:</h3>
             <Spacer size={0.5} />
-            <BigTextarea
-              placeholder="So what's something you've never told anyone?"
-              onChange={e => this.handleContentChange(e)}
-              value={this.newMessage.messageContent}
-            />
+            <Upload
+              onDrop={(bytes, dataUrl) =>
+                this.handleContentBytes(bytes, dataUrl)
+              }
+            >
+              {this.isFile ? (
+                <img
+                  src={this.fileSrc}
+                  style={{ maxWidth: "100%", maxHeight: 300 }}
+                />
+              ) : (
+                <BigTextarea
+                  placeholder="So what's something you've never told anyone?"
+                  onChange={e => this.handleContentChange(e)}
+                  value={this.newMessage.messageContent}
+                />
+              )}
+            </Upload>
           </div>
           <Spacer />
           {this.showAdvancedOptions && (
