@@ -37,6 +37,7 @@ export default class Message {
 
   static fromContract(contractMessage: IContractMessage) {
     return new Message({
+      nonce: crypto.bnToBytes(contractMessage.nonce, 24),
       creator: contractMessage.creator,
       minFragments: contractMessage.minFragments.toNumber(),
       totalFragments: contractMessage.totalFragments.toNumber(),

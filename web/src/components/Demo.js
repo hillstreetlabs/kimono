@@ -12,6 +12,7 @@ export default class Demo extends Component {
   newMessage = {
     secret: null,
     revealAtBlock: "",
+    revealPeriod: 10,
     messageContent: "Hey there, this is a demo",
     minFragments: 3,
     totalFragments: 5,
@@ -25,7 +26,7 @@ export default class Demo extends Component {
 
   async getBlockNumber() {
     const currentBlock = (await this.props.store.eth.blockNumber()).toNumber();
-    this.newMessage.revealAtBlock = currentBlock;
+    this.newMessage.revealAtBlock = currentBlock + 10;
     this.currentBlockNumber = currentBlock;
   }
 
@@ -37,6 +38,7 @@ export default class Demo extends Component {
     console.log("message", this.newMessage);
     this.transactionHash = await this.props.store.kimono.createMessage(
       this.newMessage,
+
       { from: this.props.store.currentUser.address }
     );
   }

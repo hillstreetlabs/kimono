@@ -6,6 +6,8 @@ import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
 import * as crypto from "./crypto";
 import BN from "bn.js";
 
+(window as any)["cr"] = crypto;
+
 interface KimonoContract {
   createMessage: (
     nonce: string,
@@ -100,6 +102,7 @@ export default class Kimono {
       secret: string;
       messageContent: string;
       revealAtBlock: number;
+      revealPeriod: number;
       reward: BN;
       minFragments: number;
       totalFragments: number;
@@ -110,6 +113,7 @@ export default class Kimono {
       secret,
       messageContent,
       revealAtBlock,
+      revealPeriod,
       reward,
       minFragments,
       totalFragments
@@ -171,7 +175,7 @@ export default class Kimono {
     // Hash encryptedSecretFragments
     const hashedEncryptedSecretFragments: string[] = encryptedSecretFragments.map(
       (encryptedFragment: Uint8Array) =>
-        crypto.bytesToHex(crypto.sha3(encryptedFragment))
+        crypto.bytesToHex(crypto.keccak256(encryptedFragment))
     );
     // Encrypt messageContent and add to IPFS
     const encryptedContent: Uint8Array = crypto.encryptMessage(
@@ -181,13 +185,14 @@ export default class Kimono {
     );
     const encryptedContentIpfsHash = await this.ipfs.add(encryptedContent);
     // Send createMessage transaction
+
     const transactionHash = await this.kimono.createMessage(
       crypto.bytesToHex(nonce),
       minFragments,
       totalFragments,
       revealAtBlock,
-      10, // TODO: let users update revealPeriod
-      crypto.bytesToHex(crypto.sha3(secretKey)),
+      revealPeriod,
+      crypto.bytesToHex(crypto.keccak256(secretKey)),
       reward,
       revealerAddresses,
       hashedEncryptedSecretFragments,
