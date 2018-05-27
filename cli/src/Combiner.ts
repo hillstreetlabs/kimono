@@ -4,18 +4,13 @@ import Eth from "ethjs-query";
 import EthContract from "ethjs-contract";
 import BN from "bn.js";
 import kimono from "../../contracts/build/contracts/Kimono.json";
-import kimonoCoin from "../../contracts/build/contracts/KimonoCoin.json";
 import { IProvider } from "ethjs-shared";
 import createProvider from "./util/createProvider";
-import Unit from "ethjs-unit";
 import * as crypto from "./util/crypto";
 import { eventsFromBlock } from "./util/events";
 import Message, { IContractMessage } from "./Message";
-import * as ipfs from "./util/ipfs";
 
 const GAS_LIMIT = 500000;
-const NULL_PUBLIC_KEY =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function getContract<T>(eth: Eth, contractObj: any) {
   try {
@@ -44,6 +39,7 @@ interface FragmentRevealEvent {
   revealer: string;
   minFragments: BN;
   onTimeRevealerCount: BN;
+  fragment: string;
 }
 
 interface SecretRevealEvent {
@@ -61,12 +57,10 @@ export default class Combiner {
   contract: KimonoContract;
   isSetup: boolean;
   messages: Message[] = [];
-  fragmentsByNonce: { [nonce: string]: Uint8Array } = {};
+  fragmentsByNonce: { [nonce: string]: string[] } = {};
 
-  constructor(secretKey: string, rpcUrl: string) {
-    this.secretKey = crypto.hexToBytes(secretKey);
-    this.publicKey = crypto.secretKeyToPublicKey(this.secretKey);
-    this.provider = createProvider(secretKey, rpcUrl);
+  constructor(provider: IProvider) {
+    this.provider = provider;
   }
 
   async setup() {
@@ -95,43 +89,26 @@ export default class Combiner {
   async addMessage(message: Message) {
     // Don't add the same message twice
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) return;
-
-    // Check whether we have revealed a fragment for this message already
-    const [revealedFragment] = await this.contract.messageToRevealerToFragments(
-      crypto.bytesToBn(message.nonce),
-      this.address
-    );
-    if (revealedFragment.gt(new BN(0))) {
-      // We've revealed this fragment, don't add this message
-      return;
-    }
-
-    // Grab IPFS data
-    try {
-      const content: { [address: string]: string } = await ipfs.getJson(
-        message.encryptedFragmentsIpfsHash
-      );
-      console.log(content);
-      this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
-        content[this.address]
-      ); // Still encrypted
-    } catch (e) {
-      console.warn(e);
-      this.debug(
-        "Warning: got invalid IPFS content for message",
-        message.nonceHex,
-        new Uint8Array(await ipfs.get(message.encryptedFragmentsIpfsHash))
-      );
-    }
-
-    // Add the message to our message list
     this.messages.push(message);
-
-    // Find which block to reveal message at
-    // Store that block and wait for it
   }
 
-  async addMessageFragment() {}
+  async addMessageFragment(message: Message, event: FragmentRevealEvent) {
+    // For now: only add messages that just got the first reveal.
+    // Add fragments for messages that are in the messages.
+    if (event.onTimeRevealerCount.toNumber() == 1) this.addMessage(message);
+    if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) {
+      console.log("HEY HEY HEY", this.fragmentsByNonce[message.nonceHex]);
+      if (this.fragmentsByNonce[message.nonceHex] === undefined) {
+        this.fragmentsByNonce[message.nonceHex] = [
+          crypto.bytesToShare(crypto.hexToBytes(event.fragment))
+        ];
+      } else {
+        this.fragmentsByNonce[message.nonceHex].push(
+          crypto.bytesToShare(crypto.hexToBytes(event.fragment))
+        );
+      }
+    }
+  }
 
   async onAddBlock(rawBlock: Block) {
     this.debug("Adding block ", rawBlock.number);
@@ -139,26 +116,35 @@ export default class Combiner {
     const block: Block = await this.eth.getBlockByHash(rawBlock.hash, true);
     const events = await eventsFromBlock(this.eth, this.contract, block);
 
-    // Check for fragment reveal events
-    // If we get the first fragment, then add the message and the fragment
-    await Promise.all(
-      events
-        .filter(event => event._eventName === "MessageCreation")
-        .map(async (event: MessageCreationEvent) => {
-          const message = await this.contract.getMessage(event.nonce);
-          this.addMessage(Message.fromContract(message));
-        })
-    );
-
-    // Check for secret reveal events and mark the message as revealed
-
     // Check if we should reveal any messages
     const messagesToRemove: Message[] = [];
 
     await Promise.all(
+      events
+        .filter(event => event._eventName === "SecretReveal")
+        .map(async (event: SecretRevealEvent) => {
+          const message = await this.contract.getMessage(event.nonce);
+          messagesToRemove.push(Message.fromContract(message));
+        })
+    );
+
+    messagesToRemove.forEach(message => {
+      this.messages.splice(this.messages.indexOf(message), 1);
+    });
+
+    await Promise.all(
+      events
+        .filter(event => event._eventName === "FragmentReveal")
+        .map(async (event: FragmentRevealEvent) => {
+          const message = await this.contract.getMessage(event.nonce);
+          this.addMessageFragment(Message.fromContract(message), event);
+        })
+    );
+
+    await Promise.all(
       this.messages.map(async message => {
         console.log(
-          "Checking if message should be revealed",
+          "Checking if secret should be constructed",
           message.revealBlock,
           rawBlock.number
         );
@@ -169,20 +155,23 @@ export default class Combiner {
         }
         if (
           rawBlock.number >= message.revealBlock &&
-          rawBlock.number <= message.revealBlock + message.revealPeriod
+          rawBlock.number <= message.revealBlock + message.revealPeriod &&
+          message.minFragments <= this.fragmentsByNonce[message.nonceHex].length
         ) {
           console.log("We should re-construct", message);
-          await this.contract.revealFragment(
+          await this.contract.submitRevealSecret(
             crypto.bytesToBn(message.nonce),
-            crypto.bytesToBn(
-              crypto.hexToBytes(
-                "0x0000000000000000000000000000000000000000000000000000000000000000"
-              )
+            crypto.combineSecretFragments(
+              this.fragmentsByNonce[message.nonceHex]
             ),
             {
               from: this.address,
               gas: GAS_LIMIT
             }
+          );
+
+          const result = await this.contract.getMessage(
+            crypto.bytesToBn(message.nonce)
           );
         }
       })

@@ -278,6 +278,7 @@ export default class Revealer {
           await this.contract.revealFragment(
             crypto.bytesToBn(message.nonce),
             crypto.bytesToHex(this.fragmentsByNonce[message.nonceHex]),
+
             {
               from: this.address,
               gas: GAS_LIMIT
