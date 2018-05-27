@@ -1,6 +1,7 @@
 import Eth from "ethjs-query";
 import HttpProvider from "ethjs-provider-http";
 import EthContract from "ethjs-contract";
+import EthAbi from "ethjs-abi";
 import BN from "bn.js";
 import * as ipfs from "./ipfs";
 import * as crypto from "./crypto";
@@ -24,6 +25,7 @@ interface KimonoContract {
   getEligibleRevealersCount: () => Promise<any>;
   eligibleRevealers(index: number): Promise<any>;
   revealerTable(address: string): Promise<any>;
+  decodeLogs(logs: any): any;
   address: string;
 }
 
@@ -58,6 +60,8 @@ export default class Kimono {
     this.kimono = EthContract(this.eth)<KimonoContract>(KimonoBuild.abi).at(
       kimonoAddress
     );
+    this.kimono.decodeLogs = logs => EthAbi.logDecoder(KimonoBuild.abi)(logs);
+    console.log(this.kimono.decodeLogs([]));
   }
 
   get address() {
@@ -67,7 +71,6 @@ export default class Kimono {
   // Return all eligible revealers from contract
   async getEligibleRevealers() {
     const eligibleRevealersCount: BN = (await this.kimono.getEligibleRevealersCount())[0];
-    console.log(eligibleRevealersCount.toString());
     const eligibleRevealers: Revealer[] = new Array(
       eligibleRevealersCount.toNumber()
     ).fill(undefined);
@@ -201,6 +204,14 @@ export default class Kimono {
       crypto.bytesToHex(crypto.base58ToBytes(encryptedContentIpfsHash)),
       opts || {}
     );
-    return transactionHash;
+    const getReceipt = async () => {
+      const receipt = await this.eth.getTransactionReceipt(transactionHash);
+      const events = this.kimono.decodeLogs(receipt.logs);
+      return { ...receipt, events };
+    };
+    return {
+      transactionHash,
+      getReceipt
+    };
   }
 }
