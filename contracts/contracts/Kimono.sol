@@ -169,7 +169,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     uint256 index;
     bool isIn;
-    (index, isIn) = eligibleRevealers.indexOf(_revealerAddress);
+    (index, isIn) = eligibleRevealers.indexOfFromEnd(_revealerAddress);
     if (totalStakes[_revealerAddress].sub(_reservedAmount) >= _stakePerMessage) {
       if (!isIn) {
         eligibleRevealers.push(_revealerAddress);
