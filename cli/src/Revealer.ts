@@ -202,7 +202,6 @@ export default class Revealer {
         publicKey: string;
       } = await ipfs.getJson(message.encryptedFragmentsIpfsHash);
       const senderPublicKey = crypto.hexToBytes(content.publicKey);
-      console.log(content.secretFragments, this.address);
       if (content.secretFragments && !content.secretFragments[this.address]) {
         // We are not a revealer, don't add this message
         return;

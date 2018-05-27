@@ -130,7 +130,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   modifier withValidFragment(uint256 _nonce, bytes _fragment, address revealer) {
     Fragment memory fragment = splitBytesToFragment(_fragment);
     require(
-      messageToRevealerToHashOfFragments[_nonce][revealer] == uint256(keccak256(fragment.piece1, fragment.piece2)),
+      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) == keccak256(fragment.piece1, fragment.piece2),
       "Revealer submitted an invalid fragment."
     );
     _;
