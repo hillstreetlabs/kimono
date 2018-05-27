@@ -15,5 +15,9 @@
     "skipLibCheck": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "../typings/**/*.ts", "../js/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../typings/**/*.ts",
+    "node_modules/kimono-js/**/*.ts"
+  ]
 }

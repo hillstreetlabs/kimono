@@ -1,1 +1,1 @@
-export * from "../../../js/src/crypto";
+export * from "kimono-js/src/crypto";
