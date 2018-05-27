@@ -294,7 +294,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     require(nonceToMessage[_nonce].secretConstructor == address(0), "Message secret is already revealed.");
     require(
-      bytes32(nonceToMessage[_nonce].hashOfRevealSecret) != keccak256(_secret),
+      bytes32(nonceToMessage[_nonce].hashOfRevealSecret) == keccak256(_secret),
       "Revealer submitted an invalid secret."
     );
 
