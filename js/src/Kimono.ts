@@ -1,12 +1,10 @@
 import Eth from "ethjs-query";
 import HttpProvider from "ethjs-provider-http";
 import EthContract from "ethjs-contract";
-import IPFS from "./ipfs";
-import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
-import * as crypto from "./crypto";
 import BN from "bn.js";
-
-(window as any)["cr"] = crypto;
+import * as ipfs from "./ipfs";
+import * as crypto from "./crypto";
+import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
 
 interface KimonoContract {
   createMessage: (
@@ -44,16 +42,19 @@ interface SecretFragmentsIpfsData {
 export default class Kimono {
   eth: Eth;
   kimono: KimonoContract;
-  ipfs: IPFS;
 
-  constructor(provider: HttpProvider, kimonoAddress?: string) {
+  constructor(provider: HttpProvider, networkVersion: string) {
     // Check web3 provider
     if (!provider)
       throw new Error(
         "web3 provider must be specified (e.g. `new Kimono(new HttpProvider('http://localhost:8545'))`)"
       );
     this.eth = new Eth(provider);
-    this.ipfs = new IPFS();
+    const kimonoAddress = (KimonoBuild.networks[networkVersion] || {}).address;
+    if (!kimonoAddress)
+      throw new Error(
+        "Kimono smart contract not found. Try another Ethereum network."
+      );
     this.kimono = EthContract(this.eth)<KimonoContract>(KimonoBuild.abi).at(
       kimonoAddress
     );
@@ -169,7 +170,7 @@ export default class Kimono {
         ] = crypto.bytesToHex(encryptedFragment);
       }
     );
-    const encryptedSecretFragmentsIpfsHash: string = await this.ipfs.addJson(
+    const encryptedSecretFragmentsIpfsHash: string = await ipfs.addJson(
       encryptedSecretFragments
     );
     // Hash encryptedSecretFragments
@@ -183,7 +184,7 @@ export default class Kimono {
       nonce,
       secretKey
     );
-    const encryptedContentIpfsHash = await this.ipfs.add(encryptedContent);
+    const encryptedContentIpfsHash = await ipfs.add(encryptedContent);
     // Send createMessage transaction
 
     const transactionHash = await this.kimono.createMessage(

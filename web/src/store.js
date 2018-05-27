@@ -1,8 +1,6 @@
 import { action, observable, computed, autorun } from "mobx";
 import Eth from "ethjs";
-import Kimono from "./Kimono";
-import * as crypto from "./crypto";
-import { Kimono as KimonoBuild } from "../../contracts";
+import Kimono, { crypto } from "kimono-js";
 
 const GET_CURRENT_USER_DELAY = 1000;
 const REFRESH_NETWORK_VERSION_DELAY = 1000;
@@ -34,6 +32,7 @@ export default class Store {
   @action
   async getNetworkVersion() {
     this.networkVersion = await this.eth.net_version();
+    console.log(this.networkVersion);
     this.loadingContracts = false;
     this.getNetworkVersionTimeout = setTimeout(
       () => this.getNetworkVersion(),
@@ -49,9 +48,11 @@ export default class Store {
   @computed
   get kimono() {
     if (!this.networkVersion) return null;
-    const address = (KimonoBuild.networks[this.networkVersion] || {}).address;
-    if (!address) return null;
-    return new Kimono(this.eth.currentProvider, address);
+    try {
+      return new Kimono(this.eth.currentProvider, this.networkVersion);
+    } catch (err) {
+      return null;
+    }
   }
 
   @action

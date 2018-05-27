@@ -279,6 +279,20 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
     });
   }
 
+  function reconstructFragmentToBytes(Fragment _fragment) internal view returns (bytes) {
+    bytes memory result = new bytes(50);
+    uint256 i;
+    for (i = 0; i < 32; i++) {
+      result[i] = _fragment.piece1[i];
+    }
+
+    for (i = 32; i < 50; i++) {
+      result[i] = _fragment.piece2[i];
+    }
+
+    return result;
+  }
+
   function revealFragment(uint256 _nonce, bytes _fragment)
     public
     messageExists(_nonce)
