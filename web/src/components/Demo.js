@@ -11,6 +11,7 @@ export default class Demo extends Component {
   @observable secretKey = null;
   @observable content = { message: "Hey there, this is a demo" };
   @observable revealBlock = "";
+  @observable revealPeriod = "";
 
   async signMessage() {
     this.secretKey = await this.props.store.generateSecretKey();
@@ -22,6 +23,7 @@ export default class Demo extends Component {
       this.secretKey,
       this.content,
       parseInt(this.revealBlock),
+      parseInt(this.revealPeriod),
       new BN(100000),
       2,
       3,
@@ -57,6 +59,13 @@ export default class Demo extends Component {
           <input
             type="text"
             onChange={e => (this.revealBlock = e.target.value)}
+          />
+        </p>
+        <p>
+          Reveal period:{" "}
+          <input
+            type="text"
+            onChange={e => (this.revealPeriod = e.target.value)}
           />
         </p>
         <p>
