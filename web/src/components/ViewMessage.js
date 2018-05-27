@@ -35,7 +35,7 @@ export default class ViewMessage extends Component {
 
   messageContent() {
     if (!this.message.revealSecret) return <div>Not revealed yet!</div>;
-    return <div>Revaled!</div>;
+    return <div>Revealed!</div>;
   }
 
   get minReward() {
@@ -80,9 +80,16 @@ export default class ViewMessage extends Component {
                       Revealed by {this.message.secretConstructor}
                     </Badge>
                     <Spacer size={0.5} />
-                    <MessageContent>
-                      {this.message.messageContent}
-                    </MessageContent>
+                    {this.message.messageContent.substr(0, 5) === "data:" ? (
+                      <img
+                        src={this.message.messageContent}
+                        style={{ maxWidth: "100%", maxHeight: 300 }}
+                      />
+                    ) : (
+                      <MessageContent>
+                        {this.message.messageContent}
+                      </MessageContent>
+                    )}
                   </div>
                 ) : (
                   <span>
