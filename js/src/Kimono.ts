@@ -103,7 +103,7 @@ export default class Kimono {
   async createMessage(
     props: {
       secret: string;
-      messageContent: string;
+      messageContent: string | Uint8Array;
       revealAtBlock: number;
       revealPeriod: number;
       reward: BN;
