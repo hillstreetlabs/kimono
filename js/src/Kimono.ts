@@ -61,7 +61,6 @@ export default class Kimono {
       kimonoAddress
     );
     this.kimono.decodeLogs = logs => EthAbi.logDecoder(KimonoBuild.abi)(logs);
-    console.log(this.kimono.decodeLogs([]));
   }
 
   get address() {
