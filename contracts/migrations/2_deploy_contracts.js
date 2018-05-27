@@ -26,7 +26,7 @@ module.exports = function(deployer, network, accounts) {
       // Distribute tokens to the list of addresses for testing
       if (testEnvironment) {
         console.log("Minting test KimonoCoins for the accounts...");
-        const amount = new web3.BigNumber(web3.toWei(1000, "ether"));
+        const amount = new web3.BigNumber(web3.toWei(10000, "ether"));
         return token.distributeTokensForTesting(testAccounts, amount);
       }
     })
