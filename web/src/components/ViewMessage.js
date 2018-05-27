@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import { inject, observer } from "mobx-react";
 import { action, observable } from "mobx";
+import Eth from "ethjs";
 import Spacer from "./Spacer";
 import Badge from "./Badge";
 import BN from "bn.js";
@@ -31,8 +32,15 @@ export default class ViewMessage extends Component {
     return <div>Revaled!</div>;
   }
 
+  get minReward() {
+    if (!this.message) return new BN(0);
+    const minReward = this.message.timeLockReward.div(
+      new BN(this.message.totalFragments + 1)
+    );
+    return Eth.fromWei(minReward, "ether");
+  }
+
   render() {
-    console.log(this.message);
     return (
       <Container>
         <Wrapper color={colors.blue}>
@@ -74,7 +82,12 @@ export default class ViewMessage extends Component {
               <div>
                 <h3>Time-Lock Reward:</h3>
                 <Spacer size={0.5} />
-                {this.message.timeLockReward.toString()} OPEN tokens
+                {Eth.fromWei(
+                  this.message.timeLockReward,
+                  "ether"
+                ).toString()}{" "}
+                OPEN tokens (minimum reward per revealer is{" "}
+                {this.minReward.toString()} OPEN)
               </div>
               <Spacer />
             </div>
