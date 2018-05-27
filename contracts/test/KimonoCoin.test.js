@@ -18,6 +18,21 @@ contract("KimonoCoin", ([creator, spender, owner, randomUser]) => {
     token = await KimonoCoin.new({ from: creator });
   });
 
+  describe("faucet", () => {
+    it("should mint 100 KimonoCoins", async () => {
+      const userBalance = await token.balanceOf(randomUser);
+      userBalance.should.be.bignumber.equal(0);
+
+      await expectEventInTransaction(
+        token.faucet({ from: randomUser }),
+        "Faucet"
+      );
+
+      const newBalance = await token.balanceOf(randomUser);
+      newBalance.should.be.bignumber.equal(toWei(1000));
+    });
+  });
+
   describe("approveAll", () => {
     it("should set the allowed mapping to 2^256 - 1", async () => {
       await expectEventInTransaction(
