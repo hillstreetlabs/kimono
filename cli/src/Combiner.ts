@@ -5,7 +5,6 @@ import EthContract from "ethjs-contract";
 import BN from "bn.js";
 import kimono from "../../contracts/build/contracts/Kimono.json";
 import { IProvider } from "ethjs-shared";
-import createProvider from "./util/createProvider";
 import * as crypto from "./util/crypto";
 import { eventsFromBlock } from "./util/events";
 import Message, { IContractMessage } from "./Message";

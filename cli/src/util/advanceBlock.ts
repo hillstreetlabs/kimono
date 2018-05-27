@@ -6,7 +6,7 @@ export default function advanceBlock(provider: any) {
         method: "evm_mine",
         id: Date.now()
       },
-      (err, res) => {
+      (err: any, res: any) => {
         return err ? reject(err) : resolve(res);
       }
     );
