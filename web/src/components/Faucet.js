@@ -25,18 +25,26 @@ const AnimatedButton = styled(Button)`
 @observer
 export default class Faucet extends Component {
   @observable displaySuccessMessage = false;
+  @observable currentBalance;
   // BEGIN -> PENDING -> COMPLETE
   @observable faucetState = 'BEGIN';
 
   componentDidMount() {
+    this.getCurrentBalance();
   }
 
   async requestCoins() {
-    console.log('requested coins');
-    const response = await this.props.store.kimono.faucet({ from: this.props.store.currentUser.address});
-    console.log('faucet', response);
+    const response = await this.props.store.kimono.faucet(
+      { from: this.props.store.currentUser.address}
+    );
 
+    await this.getCurrentBalance();
     this.showSuccessMessage();
+  }
+
+  async getCurrentBalance() {
+    let balance = await this.props.store.kimono.getCoinBalance(this.props.store.currentUser.address);
+    this.currentBalance = balance.div(BASE_UNIT).toString();
   }
 
   showSuccessMessage() {
@@ -51,18 +59,18 @@ export default class Faucet extends Component {
           <Spacer />
           <div>
             You have {
-              this.props.store.currentUser.balance.div(BASE_UNIT).toString()
+              this.currentBalance
             } KimonoCoins
           </div>
           <Spacer />
           <AnimatedButton
             onClick={() => this.requestCoins()}
           >
-            Get 20 tokens
+            Get coins
           </AnimatedButton>
           <Spacer />
           { this.displaySuccessMessage &&
-            <div>Success!</div>
+            <div>Coins requested (please wait and refresh the page)</div>
           }
         </Wrapper>
       </Container>
