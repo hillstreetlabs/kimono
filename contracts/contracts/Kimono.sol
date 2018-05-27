@@ -124,7 +124,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
 
   modifier withValidFragment(uint256 _nonce, uint256 _fragment, address revealer) {
     require(
-      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) != keccak256(_fragment),
+      bytes32(messageToRevealerToHashOfFragments[_nonce][revealer]) == keccak256(_fragment),
       "Revealer submitted an invalid fragment."
     );
     _;
