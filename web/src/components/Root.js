@@ -5,7 +5,30 @@ import { Link } from "react-router-dom";
 
 import Landing from "./Landing";
 import FAQ from "./FAQ";
-import Demo from "./Demo";
+import AddMessage from "./AddMessage";
+import ViewMessage from "./ViewMessage";
+
+import styled from "react-emotion";
+import { basePadding, colors } from "../styles";
+
+export const Container = styled("div")`
+  padding: ${basePadding * 1.5}px;
+`;
+
+export const Wrapper = styled("div")`
+  border: 3px solid ${props => props.color || colors.textBlack};
+  padding: ${basePadding * 1.5}px;
+`;
+
+export const HeaderLink = styled(Link)`
+  color: black;
+
+  &:hover {
+    color: ${colors.green};
+    border-bottom: 3px dotted ${colors.blue};
+    text-decoration: none;
+  }
+`;
 
 @inject("store")
 @observer
@@ -24,7 +47,9 @@ export class App extends Component {
     return (
       <div>
         <Switch>
-          <Route path="/demo" component={Demo} />
+          <Route path="/add" component={AddMessage} />
+          <Route path="/:messageId" component={ViewMessage} />
+          <Redirect to="/" />
         </Switch>
       </div>
     );
