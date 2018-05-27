@@ -283,10 +283,12 @@ export default class Revealer {
           rawBlock.number >= message.revealBlock &&
           rawBlock.number <= message.revealBlock + message.revealPeriod
         ) {
-          console.log("We should reveal", message);
+          console.log("We should reveal BOOM", message);
           await this.contract.revealFragment(
             crypto.bytesToBn(message.nonce),
-            crypto.bytesToHex(this.fragmentsByNonce[message.nonceHex]),
+            crypto.bytesToHex(
+              crypto.sha3(this.fragmentsByNonce[message.nonceHex])
+            ),
             {
               from: this.address,
               gas: GAS_LIMIT
