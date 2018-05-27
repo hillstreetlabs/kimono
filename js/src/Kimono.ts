@@ -132,7 +132,7 @@ export default class Kimono {
     const eligibleRevealers: Revealer[] = await this.getEligibleRevealers();
     const minReward: BN = reward.div(new BN(numRevealers + 1));
     const filteredAndOrderedRevealers: Revealer[] = eligibleRevealers
-      .filter((revealer: Revealer) => revealer.minReward.gte(minReward))
+      .filter((revealer: Revealer) => minReward.gte(revealer.minReward))
       .sort((a, b) => a.stakePerMessage.sub(b.stakePerMessage).toNumber());
     return filteredAndOrderedRevealers.slice(0, numRevealers);
   }
