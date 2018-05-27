@@ -18,6 +18,7 @@ export const Container = styled("div")`
 export const Wrapper = styled("div")`
   border: 3px solid ${props => props.color || colors.textBlack};
   padding: ${basePadding * 1.5}px;
+  position: relative;
 `;
 
 export const HeaderLink = styled(Link)`

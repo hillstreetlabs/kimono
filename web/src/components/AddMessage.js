@@ -3,29 +3,54 @@ import { inject, observer } from "mobx-react";
 import { action, observable } from "mobx";
 import { Link } from "react-router-dom";
 import Spacer from "./Spacer";
+import Button from "./Button";
+import Input from "./Input";
+import Textarea from "./Textarea";
 import BN from "bn.js";
 import { Container, Wrapper, HeaderLink } from "./Root";
-import styled from "react-emotion";
-import { basePadding, colors } from "../styles";
+import styled, { keyframes } from "react-emotion";
+import { basePadding, colors, lighten } from "../styles";
 
-const Textarea = styled("textarea")`
+const Flex = styled("div")`
+  display: flex;
   width: 100%;
-  height: 200px;
-  padding: ${basePadding / 2}px;
-  font-size: 1.2em;
+
+  & > div {
+    width: 50%;
+  }
+`;
+
+const gentlePulseColor = keyframes`
+  0% { background-color: ${colors.darkGreen}; }
+  45% { background-color: ${lighten(colors.blue, 20)}; }
+  100% {background-color: ${colors.darkGreen};  }
+`;
+
+const BigTextarea = styled(Textarea)`
+  font-size: 1.3em;
+`;
+
+const AnimatedButton = styled(Button)`
+  ${props =>
+    props.loading &&
+    `
+    opacity: 1 !important;
+    animation: ${gentlePulseColor} 2s infinite;
+  `};
 `;
 
 @inject("store")
 @observer
 export default class AddMessage extends Component {
   @observable currentBlockNumber;
-  @observable creatingMessage = false;
+  @observable createMessageStatus = "none";
+  @observable showAdvancedOptions = false;
   @observable
   newMessage = {
     secret: null,
     revealAtBlock: "",
     revealPeriod: 10,
-    messageContent: "Hey there, this is a demo",
+    messageContent: "",
     minFragments: 3,
     totalFragments: 5,
     reward: new BN(10000)
@@ -47,11 +72,12 @@ export default class AddMessage extends Component {
   }
 
   async createMessage() {
-    this.creatingMessage = true;
+    this.createMessageStatus = "preparing";
     const response = await this.props.store.kimono.createMessage(
       this.newMessage,
       { from: this.props.store.currentUser.address }
     );
+    this.createMessageStatus = "confirming";
     const transactionReceipt = await response.getReceipt();
     const creationEvent = transactionReceipt.events.filter(
       log => log._eventName === "MessageCreation"
@@ -75,6 +101,10 @@ export default class AddMessage extends Component {
     this.newMessage.minFragments = parseInt(e.target.value);
   }
 
+  toggleAdvancedOptions() {
+    this.showAdvancedOptions = !this.showAdvancedOptions;
+  }
+
   render() {
     return (
       <Container>
@@ -85,64 +115,88 @@ export default class AddMessage extends Component {
           </h1>
           <Spacer />
           <div>
-            Kimono contract found at <b>{this.props.store.kimono.address}</b>
+            <h3>Author:</h3>
+            <p>{this.props.store.currentUser.address}</p>
           </div>
-          <div>Current user: {this.props.store.currentUser.address}</div>
-          <div>OPEN balance: {true}</div>
           <Spacer />
-          <Spacer size={0.5} />
           <div>
-            Secret key:{" "}
+            <h3>Author signature:</h3>
+            <Spacer size={0.5} />
             {this.newMessage.secret || (
-              <button onClick={() => this.generateSecretKey()}>
+              <Button onClick={() => this.generateSecretKey()}>
                 Generate Secret
-              </button>
+              </Button>
             )}
           </div>
-          <Spacer size={0.5} />
+          <Spacer />
           <div>
-            Block to be revealed (current block is {this.currentBlockNumber}):{" "}
-            <input
+            <h3>Block to be revealed</h3>
+            <p>Note: the current block is {this.currentBlockNumber}</p>
+            <Spacer size={0.5} />
+            <Input
               onChange={e => this.handleRevealAtBlockChange(e)}
               value={this.newMessage.revealAtBlock}
             />
           </div>
-          <Spacer size={0.5} />
-          <div>
-            Total secret fragments:{" "}
-            <input
-              onChange={e => this.handleTotalFragmentsChange(e)}
-              value={this.newMessage.totalFragments}
-            />
-          </div>
-          <Spacer size={0.5} />
-          <div>
-            Minimum fragments needed to reconstruct:{" "}
-            <input
-              onChange={e => this.handleMinFragmentsChange(e)}
-              value={this.newMessage.minFragments}
-            />
-          </div>
-          <Spacer size={0.5} />
+          <Spacer />
           <div>
             <h3>Message content:</h3>
             <Spacer size={0.5} />
-            <Textarea
-              placeholder="What's one of your closest held secrets?"
+            <BigTextarea
+              placeholder="So what's something you've never told anyone?"
               onChange={e => this.handleContentChange(e)}
               value={this.newMessage.messageContent}
             />
           </div>
-          <Spacer size={0.5} />
-          <div>
-            {this.transactionHash || (
-              <button
-                disabled={!this.newMessage.secret}
-                onClick={() => this.createMessage()}
-              >
-                Create message
-              </button>
-            )}
+          <Spacer />
+          {this.showAdvancedOptions && (
+            <div>
+              <Flex>
+                <div>
+                  <h3>Total secret fragments:</h3>
+                  <Spacer size={0.5} />
+                  <Input
+                    onChange={e => this.handleTotalFragmentsChange(e)}
+                    value={this.newMessage.totalFragments}
+                  />
+                </div>
+                <div>
+                  <h3>Minimum fragments needed to reconstruct:</h3>
+                  <Spacer size={0.5} />
+                  <Input
+                    onChange={e => this.handleMinFragmentsChange(e)}
+                    value={this.newMessage.minFragments}
+                  />
+                </div>
+              </Flex>
+              <Spacer />
+            </div>
+          )}
+          <div style={{ fontSize: "1.4em" }}>
+            <AnimatedButton
+              disabled={
+                !this.newMessage.secret || this.createMessageStatus != "none"
+              }
+              onClick={() => this.createMessage()}
+              loading={this.createMessageStatus != "none"}
+            >
+              {this.createMessageStatus === "none" && (
+                <span>Create message &rarr;</span>
+              )}
+              {this.createMessageStatus === "preparing" && (
+                <span>Preparing message...</span>
+              )}
+              {this.createMessageStatus === "confirming" && (
+                <span>Confirming transaction...</span>
+              )}
+            </AnimatedButton>
+
+            <Spacer inline />
+            <small>
+              <a onClick={() => this.toggleAdvancedOptions()}>
+                {this.showAdvancedOptions ? "Hide" : "Show"} Advanced Options
+              </a>
+            </small>
           </div>
         </Wrapper>
       </Container>

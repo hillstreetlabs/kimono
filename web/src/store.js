@@ -32,7 +32,6 @@ export default class Store {
   @action
   async getNetworkVersion() {
     this.networkVersion = await this.eth.net_version();
-    console.log(this.networkVersion);
     this.loadingContracts = false;
     this.getNetworkVersionTimeout = setTimeout(
       () => this.getNetworkVersion(),
@@ -77,7 +76,7 @@ export default class Store {
 
   async generateSecretKey() {
     const message =
-      "KIMONO LOGIN: Sign this message to authenticate with Kimono.";
+      "KIMONO CAPSULE LOGIN: Sign this message to authenticate with Kimono.";
     const result = await this.eth.personal_sign(
       Eth.fromUtf8(message, "hex"),
       this.currentUser.address
