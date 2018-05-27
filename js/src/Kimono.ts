@@ -152,8 +152,17 @@ export default class Kimono {
       timeLockReward,
       encryptedFragments
     } = response;
+    let messageContent;
     if (revealSecret != "0") {
       // TODO: re-generate content
+      const encryptedMessage = await ipfs.get(
+        ipfs.toIpfsHash(response.encryptedMessage)
+      );
+      messageContent = crypto.decryptMessage(
+        new Uint8Array(encryptedMessage),
+        crypto.bnToBytes(nonce, 24),
+        crypto.bnToBytes(revealSecret, 32)
+      );
     }
     return {
       nonce,
@@ -168,6 +177,7 @@ export default class Kimono {
       revealPeriod: revealPeriod.toNumber(),
       hashOfRevealSecret,
       timeLockReward,
+      messageContent,
       encryptedFragments: encryptedFragments
     };
   }

@@ -66,10 +66,13 @@ export default class ViewMessage extends Component {
               </div>
               <Spacer />
               <div>
-                <h3>Status:</h3>
+                <h3>Message Content:</h3>
                 <Spacer size={0.5} />
-                {this.message.revealSecret ? (
-                  <Badge color={colors.darkGreen}>Revealed</Badge>
+                {this.message.messageContent ? (
+                  <div>
+                    {this.message.messageContent}
+                    <Badge color={colors.darkGreen}>Revealed</Badge>
+                  </div>
                 ) : (
                   <span>
                     <Badge color={colors.red}>Not Revealed</Badge> Will be
