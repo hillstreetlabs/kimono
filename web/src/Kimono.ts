@@ -98,15 +98,26 @@ export default class Kimono {
   }
 
   async createMessage(
-    secret: string,
-    content: string,
-    revealAtBlock: number,
-    revealPeriod: number,
-    reward: BN,
-    minFragments: number,
-    totalFragments: number,
-    props?: Object
+    props: {
+      secret: string;
+      messageContent: string;
+      revealAtBlock: number;
+      revealPeriod: number;
+      reward: BN;
+      minFragments: number;
+      totalFragments: number;
+    },
+    opts?: Object
   ) {
+    const {
+      secret,
+      messageContent,
+      revealAtBlock,
+      revealPeriod,
+      reward,
+      minFragments,
+      totalFragments
+    } = props;
     // Find and select revealers
     const eligibleRevealers: Revealer[] = await this.getRevealersForMessage(
       reward,
@@ -164,11 +175,11 @@ export default class Kimono {
     // Hash encryptedSecretFragments
     const hashedEncryptedSecretFragments: string[] = encryptedSecretFragments.map(
       (encryptedFragment: Uint8Array) =>
-        crypto.bytesToHex(crypto.sha3(encryptedFragment))
+        crypto.bytesToHex(crypto.keccak256(encryptedFragment))
     );
-    // Encrypt content and add to IPFS
+    // Encrypt messageContent and add to IPFS
     const encryptedContent: Uint8Array = crypto.encryptMessage(
-      JSON.stringify(content),
+      messageContent,
       nonce,
       secretKey
     );
@@ -187,7 +198,7 @@ export default class Kimono {
       hashedEncryptedSecretFragments,
       crypto.bytesToHex(crypto.base58ToBytes(encryptedSecretFragmentsIpfsHash)),
       crypto.bytesToHex(crypto.base58ToBytes(encryptedContentIpfsHash)),
-      props || {}
+      opts || {}
     );
     return transactionHash;
   }
