@@ -38,7 +38,6 @@ export default class Demo extends Component {
     console.log("message", this.newMessage);
     this.transactionHash = await this.props.store.kimono.createMessage(
       this.newMessage,
-
       { from: this.props.store.currentUser.address }
     );
   }
