@@ -23,6 +23,7 @@ export default class ViewMessage extends Component {
 
   async getMessage() {
     this.message = await this.props.store.kimono.getMessage(this.messageId);
+    console.log(this.message);
   }
 
   messageContent() {

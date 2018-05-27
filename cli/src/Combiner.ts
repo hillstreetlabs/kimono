@@ -97,7 +97,6 @@ export default class Combiner {
     // Add fragments for messages that are in the messages.
     if (event.onTimeRevealerCount.toNumber() == 1) this.addMessage(message);
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) {
-      console.log("HEY HEY HEY", this.fragmentsByNonce[message.nonceHex]);
       if (this.fragmentsByNonce[message.nonceHex] === undefined) {
         this.fragmentsByNonce[message.nonceHex] = [
           crypto.bytesToShare(crypto.hexToBytes(event.fragment))
@@ -158,23 +157,28 @@ export default class Combiner {
           rawBlock.number <= message.revealBlock + message.revealPeriod &&
           message.minFragments <= this.fragmentsByNonce[message.nonceHex].length
         ) {
-          console.log("We should re-construct", message);
-          await this.contract.submitRevealSecret(
-            crypto.bytesToBn(message.nonce),
-            crypto.combineSecretFragments(
-              this.fragmentsByNonce[message.nonceHex]
-            ),
-            {
-              from: this.address,
-              gas: GAS_LIMIT
-            }
-          );
+          try {
+            await this.contract.submitRevealSecret(
+              crypto.bytesToBn(message.nonce),
+              crypto.combineSecretFragments(
+                this.fragmentsByNonce[message.nonceHex]
+              ),
+              {
+                from: this.address,
+                gas: GAS_LIMIT
+              }
+            );
 
-          const result = await this.contract.getMessage(
-            crypto.bytesToBn(message.nonce)
-          );
-
-          console.log("Reveal secret submitted", result);
+            const result = await this.contract.getMessage(
+              crypto.bytesToBn(message.nonce)
+            );
+            this.debug(
+              "Submitted secret " +
+                crypto.bytesToHex(crypto.bnToBytes(result.revealSecret, 32))
+            );
+          } catch {
+            console.log("Error state");
+          }
         }
       })
     );
