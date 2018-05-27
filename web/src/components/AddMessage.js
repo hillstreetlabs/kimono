@@ -93,10 +93,10 @@ export default class AddMessage extends Component {
   }
 
   @action
-  handleContentBytes(bytes, dataUrl) {
+  handleContentDataUrl(dataUrl) {
     this.isFile = true;
     this.fileSrc = dataUrl;
-    this.newMessage.messageContent = bytes;
+    this.newMessage.messageContent = dataUrl;
   }
 
   handleContentChange(e) {
@@ -174,9 +174,7 @@ export default class AddMessage extends Component {
             <h3>Message content:</h3>
             <Spacer size={0.5} />
             <Upload
-              onDrop={(bytes, dataUrl) =>
-                this.handleContentBytes(bytes, dataUrl)
-              }
+              onDrop={(bytes, dataUrl) => this.handleContentDataUrl(dataUrl)}
             >
               {this.isFile ? (
                 <img
