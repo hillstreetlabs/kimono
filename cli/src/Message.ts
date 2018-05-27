@@ -29,6 +29,7 @@ export default class Message {
   timeLockReward: BN; // Time lock reward staked by the creator of the message
   encryptedMessageIpfsHash: string; // IPFS multi-hash of the encrypted message
   encryptedFragmentsIpfsHash: string; // IPFS multi-hash of the fragments
+  createdAt: BN;
 
   constructor(message: Partial<Message>) {
     Object.assign(this, message);
