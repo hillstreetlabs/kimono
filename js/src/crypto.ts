@@ -125,7 +125,11 @@ export function decryptMessage(
   secret: Uint8Array
 ) {
   const decrypted = nacl.secretbox.open(data, nonce, secret);
-  return JSON.parse(util.encodeUTF8(decrypted));
+  try {
+    return util.encodeUTF8(decrypted);
+  } catch (err) {
+    return decrypted;
+  }
 }
 
 export function encryptSecretForRevealer(
