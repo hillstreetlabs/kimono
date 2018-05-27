@@ -99,6 +99,7 @@ export default class Kimono {
     secret: string,
     content: string,
     revealAtBlock: number,
+    revealPeriod: number,
     reward: BN,
     minFragments: number,
     totalFragments: number,
@@ -171,12 +172,15 @@ export default class Kimono {
     );
     const encryptedContentIpfsHash = await this.ipfs.add(encryptedContent);
     // Send createMessage transaction
+
+    console.log("REVEA", revealPeriod);
+
     const transactionHash = await this.kimono.createMessage(
       crypto.bytesToHex(nonce),
       minFragments,
       totalFragments,
       revealAtBlock,
-      10, // TODO: let users update revealPeriod
+      revealPeriod,
       crypto.bytesToHex(crypto.sha3(secretKey)),
       reward,
       revealerAddresses,
