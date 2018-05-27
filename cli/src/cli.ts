@@ -5,7 +5,6 @@ import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
 import Eth from "ethjs-query";
-import BN from "bn.js";
 import createProvider from "./util/createProvider";
 import advanceBlock from "./util/advanceBlock";
 
@@ -48,12 +47,13 @@ program
   .action(async (options: { delay: number; to: number }) => {
     const provider = createProvider(
       process.env.PRIVATE_KEY,
-      process.env.JSON_RPC_URL
+      process.env.TEST_JSON_RPC_URL
     );
     const eth = new Eth(provider);
 
     if (options.to) {
       let blockNumber = (await eth.blockNumber()).toNumber();
+      console.log(blockNumber);
       while (blockNumber < options.to) {
         await advanceBlock(provider);
         blockNumber = (await eth.blockNumber()).toNumber();

@@ -173,12 +173,11 @@ export default class Kimono {
       }
     );
     const encryptedSecretFragmentsIpfsHash: string = await ipfs.addJson(
-      encryptedSecretFragments
+      encryptedSecretFragmentsByRevealer
     );
-    // Hash encryptedSecretFragments
-    const hashedEncryptedSecretFragments: string[] = encryptedSecretFragments.map(
-      (encryptedFragment: Uint8Array) =>
-        crypto.bytesToHex(crypto.keccak256(encryptedFragment))
+    // Hash secretFragments
+    const hashedEncryptedSecretFragments: string[] = secretFragments.map(
+      fragment => crypto.bytesToHex(crypto.keccak256(fragment))
     );
     // Encrypt messageContent and add to IPFS
     const encryptedContent: Uint8Array = crypto.encryptMessage(
@@ -199,8 +198,8 @@ export default class Kimono {
       reward,
       revealerAddresses,
       hashedEncryptedSecretFragments,
-      crypto.bytesToHex(crypto.base58ToBytes(encryptedSecretFragmentsIpfsHash)),
       crypto.bytesToHex(crypto.base58ToBytes(encryptedContentIpfsHash)),
+      crypto.bytesToHex(crypto.base58ToBytes(encryptedSecretFragmentsIpfsHash)),
       opts || {}
     );
     const getReceipt = async () => {

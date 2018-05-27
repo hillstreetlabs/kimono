@@ -3,6 +3,7 @@ import util from "tweetnacl-util";
 import { keccak256 } from "js-sha3";
 import bs58 from "bs58";
 import BN from "bn.js";
+import secrets from "secrets.js-grempe";
 
 export function bnToBytes(bn: BN, length: number) {
   return hexToBytes(bn.toString(16, length));
@@ -10,6 +11,27 @@ export function bnToBytes(bn: BN, length: number) {
 
 export function bytesToBn(bytes: Uint8Array) {
   return new BN(bytesToHex(bytes).substring(2), 16);
+}
+
+// HACKITY HACK HACK
+// WARNING: this requires that there be less than 256 shares!!!!!
+// NOTE: shareToBytes will return a length 50 Uint8Array
+export function shareToBytes(share: string): Uint8Array {
+  const { bits, id, data } = secrets.extractShareComponents(share);
+  const bytes = [];
+  bytes.push(bits);
+  bytes.push(id);
+  bytes.push(...Array.from(hexToBytes(data)));
+  return new Uint8Array(bytes);
+}
+
+export function bytesToShare(bytes: Uint8Array): string {
+  const bits = bytes[0];
+  const id = bytes[1];
+  let idByte = id.toString(16);
+  if (idByte.length === 1) idByte = "0" + idByte;
+  const data = bytes.subarray(2);
+  return bits.toString(36) + idByte + bytesToHex(data).substr(2);
 }
 
 // Convert a hex string to a byte array
@@ -66,6 +88,29 @@ export function sha3(bytes: Uint8Array) {
 
 export function createNonce() {
   return nacl.randomBytes(24);
+}
+
+export function encryptSecretForRevealer(
+  messageSecret: Uint8Array,
+  nonce: Uint8Array,
+  revealerPublicKey: Uint8Array,
+  secretKey: Uint8Array
+) {
+  return nacl.box(messageSecret, nonce, revealerPublicKey, secretKey);
+}
+
+export function decryptSecretForRevealer(
+  encryptedSecret: Uint8Array,
+  nonce: Uint8Array,
+  dealerPublicKey: Uint8Array,
+  revealerSecretKey: Uint8Array
+) {
+  return nacl.box.open(
+    encryptedSecret,
+    nonce,
+    dealerPublicKey,
+    revealerSecretKey
+  );
 }
 
 export function buildMessageSecret(
