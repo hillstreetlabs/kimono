@@ -173,8 +173,6 @@ export default class Kimono {
     const encryptedContentIpfsHash = await this.ipfs.add(encryptedContent);
     // Send createMessage transaction
 
-    console.log("REVEA", revealPeriod);
-
     const transactionHash = await this.kimono.createMessage(
       crypto.bytesToHex(nonce),
       minFragments,
