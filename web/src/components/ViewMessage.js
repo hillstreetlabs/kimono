@@ -9,6 +9,8 @@ import { Container, Wrapper, HeaderLink } from "./Root";
 import styled from "react-emotion";
 import { basePadding, colors } from "../styles";
 
+const REFRESH_MESSAGE_DELAY = 1000;
+
 const MessageContent = styled("div")`
   padding: ${basePadding}px;
   background-color: ${colors.lightBorderGrey};
@@ -30,7 +32,10 @@ export default class ViewMessage extends Component {
 
   async getMessage() {
     this.message = await this.props.store.kimono.getMessage(this.messageId);
-    console.log(this.message);
+    this.getMessageTimeout = setTimeout(
+      () => this.getMessage(),
+      REFRESH_MESSAGE_DELAY
+    );
   }
 
   messageContent() {
