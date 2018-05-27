@@ -46,6 +46,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   mapping (uint256 => Message) public nonceToMessage;
   mapping (address => uint256[]) public revealerToMessages;
   mapping (uint256 => address[]) public messageToRevealers;
+  mapping (uint256 => uint256) public messageToCreatedAt;
   mapping (uint256 => mapping(address => Fragment)) public messageToRevealerToFragments;
   mapping (uint256 => mapping(address => uint256)) public messageToRevealerToHashOfFragments;
   mapping (uint256 => mapping(address => RevealStatus)) public messageToRevealerToRevealStatus;
@@ -243,6 +244,7 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       revealerToMessages[_revealerAddresses[i]].push(_nonce);
     }
     messageToRevealers[_nonce] = _revealerAddresses;
+    messageToCreatedAt[_nonce] = block.timestamp;
 
     // Transfer the _timeLockReward KimonoCoins to the contract from the creator.
     // This will revert if the allowed amount in the KimonoCoin contract is insufficient.
@@ -461,6 +463,10 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
       combineIPFSHash(message.encryptedMessage),
       combineIPFSHash(message.encryptedFragments)
     );
+  }
+
+  function getMessageCreatedAt(uint256 _nonce) external view returns (uint256) {
+    return messageToCreatedAt[_nonce];
   }
 
   function getMessageNoncesForRevealer(address _revealer) external view returns (uint256[] nonces) {
