@@ -267,12 +267,18 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   }
 
   function splitBytesToFragment(bytes _fragment) internal view returns (Fragment) {
-    bytes32 piece1;
-    bytes18 piece2;
-    assembly {
-      mstore(piece1, _fragment)
-      mstore(add(piece1, 32), _fragment)
+    bytes32 piece1 = bytes32(0);
+    bytes18 piece2 = bytes18(0);
+    uint256 i;
+
+    for (i = 0; i < 32; i++) {
+      piece1 |= bytes32(_fragment[i] & 0xFF) >> (i * 8);
     }
+
+    for (i = 0; i < 18; i++) {
+      piece2 |= bytes18(_fragment[i + 32] & 0xFF) >> (i * 8);
+    }
+
     return Fragment({
       piece1: piece1,
       piece2: piece2
