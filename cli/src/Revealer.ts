@@ -181,10 +181,12 @@ export default class Revealer {
       const content: { [address: string]: string } = await ipfs.getJson(
         message.encryptedFragmentsIpfsHash
       );
+      console.log(content);
       this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
         content[this.address]
       ); // Still encrypted
     } catch (e) {
+      console.warn(e);
       this.debug(
         "Warning: got invalid IPFS content for message",
         message.nonceHex,
