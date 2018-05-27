@@ -15,7 +15,7 @@ import * as ipfs from "./util/ipfs";
 
 // import * as crypto from "./util/crypto";
 
-const GAS_LIMIT = 500000;
+const GAS_LIMIT = 1000000;
 const NULL_PUBLIC_KEY =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 

@@ -2,11 +2,12 @@
   "compileOnSave": false,
   "compilerOptions": {
     "experimentalDecorators": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "lib": ["es6", "dom"],
     "jsx": "preserve",
     "target": "es5",
-    "module": "es2015",
+    "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitAny": true,
     "noUnusedLocals": true,
