@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "linkall": "(cd js && yarn link) && (cd cli && yarn link kimono-js) && (cd web && yarn link kimono-js)"
+  }
+}
