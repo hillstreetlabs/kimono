@@ -38,7 +38,7 @@
     "humps": "^2.0.1",
     "jest": "^22.4.3",
     "json-loader": "^0.5.7",
-    "kimono-js": "^0.0.1",
+    "kimono-js": "^0.0.3",
     "mobx": "^4.2.1",
     "mobx-react": "^5.1.2",
     "prop-types": "^15.6.1",

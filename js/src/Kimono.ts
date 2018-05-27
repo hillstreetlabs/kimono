@@ -5,8 +5,8 @@ import EthAbi from "ethjs-abi";
 import BN from "bn.js";
 import * as ipfs from "./ipfs";
 import * as crypto from "./crypto";
-import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
-import KimonoCoinBuild from "../../contracts/build/contracts/KimonoCoin.json";
+import KimonoBuild from "../Kimono.json";
+import KimonoCoinBuild from "../KimonoCoin.json";
 
 interface KimonoContract {
   createMessage: (

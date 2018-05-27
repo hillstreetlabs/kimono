@@ -2,6 +2,7 @@
   "compileOnSave": false,
   "compilerOptions": {
     "experimentalDecorators": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "lib": ["es6", "dom"],
     "jsx": "preserve",
