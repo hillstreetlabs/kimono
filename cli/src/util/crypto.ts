@@ -5,6 +5,8 @@ import bs58 from "bs58";
 import BN from "bn.js";
 import secrets from "secrets.js-grempe";
 
+let web3Utils = require("web3-utils");
+
 export function bnToBytes(bn: BN, length: number) {
   return hexToBytes(bn.toString(16, length));
 }
@@ -83,7 +85,9 @@ function concat(array1: Uint8Array, array2: Uint8Array) {
 }
 
 export function sha3(bytes: Uint8Array) {
-  return new Uint8Array(keccak256.update(bytes).arrayBuffer());
+  console.log("using soliditySha3");
+  return hexToBytes(web3Utils.soliditySha3(bytesToHex(bytes)));
+  // return new Uint8Array(keccak256.update(bytes).arrayBuffer());
 }
 
 export function createNonce() {

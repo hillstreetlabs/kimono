@@ -478,4 +478,8 @@ contract Kimono is IPFSWrapper, ReentrancyGuard {
   {
     return messageToRevealerToFragments[_nonce][_revealer];
   }
+
+  function test_getFragmentHash(bytes32 piece1, bytes18 piece2) external view returns (bytes32) {
+    return keccak256(piece1, piece2);
+  }
 }
