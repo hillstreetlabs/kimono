@@ -173,6 +173,8 @@ export default class Combiner {
           const result = await this.contract.getMessage(
             crypto.bytesToBn(message.nonce)
           );
+
+          console.log("Reveal secret submitted", result);
         }
       })
     );
