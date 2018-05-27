@@ -35,6 +35,8 @@ interface KimonoCoinContract {
   address: string;
   decodeLogs(logs: any): any;
   balanceOf(address: string): Promise<{ 0: BN }>;
+  allowance(address: string, spender: string): Promise<{ 0: BN }>;
+  approveAll(address: string): Promise<{ 0: BN }>;
   faucet(opts?: any): Promise<boolean>;
 }
 
@@ -103,6 +105,20 @@ export default class Kimono {
   async getCoinBalance(address: string): Promise<BN> {
     const response = await this.kimonoCoin.balanceOf(address);
     return response[0];
+  }
+
+  async getCoinAllowance(address: string): Promise<BN> {
+    const response = await this.kimonoCoin.allowance(
+      address,
+      this.kimono.address
+    );
+    return response[0];
+  }
+
+  async approveAll(address: string): Promise<BN> {
+    const response = await this.kimonoCoin.approveAll(this.kimono.address, {
+      from: address
+    });
   }
 
   async faucet(opts?: Object): Promise<boolean> {
