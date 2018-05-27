@@ -1,0 +1,40 @@
+{
+  "name": "kimono-js",
+  "version": "0.0.1",
+  "description": "Javascript library for the Kimono network on Ethereum",
+  "main": "dist/index.js",
+  "repository": "https://github.com/hillstreetlabs/kimono",
+  "author": "Paul Fletcher-Hill",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@types/form-data": "^2.2.1",
+    "@types/isomorphic-fetch": "^0.0.34",
+    "@types/node": "^10.1.2",
+    "@types/node-fetch": "^1.6.9",
+    "bn.js": "^4.11.8",
+    "bs58": "^4.0.1",
+    "ethjs-contract": "^0.2.3",
+    "ethjs-provider-http": "^0.1.6",
+    "ethjs-query": "^0.3.8",
+    "form-data": "^2.3.2",
+    "isomorphic-fetch": "^2.2.1",
+    "js-sha3": "^0.7.0",
+    "node-fetch": "^2.1.2",
+    "secrets.js-grempe": "^1.1.0",
+    "tweetnacl": "^1.0.0",
+    "tweetnacl-util": "^0.15.0",
+    "typescript": "^2.8.3"
+  },
+  "devDependencies": {
+    "crypto": "^1.0.1",
+    "ethjs-rpc": "^0.2.0",
+    "ganache-core": "2.0.2",
+    "jest": "^22.4.3"
+  }
+}

@@ -16,19 +16,6 @@ const config = {
   module: {
     rules: [
       {
-        test: /\.ts(x?)$/,
-        exclude: /node_modules/,
-        use: [
-          "babel-loader",
-          {
-            loader: "ts-loader",
-            options: {
-              experimentalWatchApi: true
-            }
-          }
-        ]
-      },
-      {
         test: /\.(js|jsx)$/,
         exclude: /(node_modules)/,
         use: "babel-loader"
@@ -55,7 +42,7 @@ const config = {
     ]
   },
   resolve: {
-    extensions: [".js", ".ts"]
+    extensions: [".js"]
   },
   plugins: [
     new webpack.NamedModulesPlugin(),

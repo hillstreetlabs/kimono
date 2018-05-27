@@ -5,8 +5,6 @@ import bs58 from "bs58";
 import BN from "bn.js";
 import secrets from "secrets.js-grempe";
 
-(window as any).secrets = secrets;
-
 export function bnToBytes(bn: BN, length: number) {
   return hexToBytes(bn.toString(16, length));
 }
