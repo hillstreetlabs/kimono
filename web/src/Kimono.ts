@@ -6,6 +6,8 @@ import KimonoBuild from "../../contracts/build/contracts/Kimono.json";
 import * as crypto from "./crypto";
 import BN from "bn.js";
 
+(window as any)["cr"] = crypto;
+
 interface KimonoContract {
   createMessage: (
     nonce: string,
@@ -179,7 +181,7 @@ export default class Kimono {
       totalFragments,
       revealAtBlock,
       revealPeriod,
-      crypto.bytesToHex(crypto.sha3(secretKey)),
+      crypto.bytesToHex(crypto.keccak256(secretKey)),
       reward,
       revealerAddresses,
       hashedEncryptedSecretFragments,

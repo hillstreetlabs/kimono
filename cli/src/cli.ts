@@ -43,21 +43,32 @@ program
 program
   .command("advanceBlock")
   .description("Adds a block every N milliseconds")
-  .option("-N, --number <x>", "Number of milliseconds between blocks", parseInt)
-  .action(async (options: { number: number }) => {
+  .option("-D, --delay <x>", "Number of milliseconds between blocks", parseInt)
+  .option("-T, --to <x>", "Block number to jump to", parseInt)
+  .action(async (options: { delay: number; to: number }) => {
     const provider = createProvider(
       process.env.PRIVATE_KEY,
       process.env.JSON_RPC_URL
     );
+    const eth = new Eth(provider);
 
-    let interval = setInterval(
-      () => advanceBlock(provider),
-      options.number || 10000
-    );
-    process.on("SIGINT", () => {
-      clearInterval(interval);
-      process.exit();
-    });
+    if (options.to) {
+      let blockNumber = (await eth.blockNumber()).toNumber();
+      while (blockNumber < options.to) {
+        await advanceBlock(provider);
+        blockNumber = (await eth.blockNumber()).toNumber();
+        console.log(blockNumber);
+      }
+    } else if (options.delay) {
+      let interval = setInterval(async () => {
+        await advanceBlock(provider);
+        console.log((await eth.blockNumber()).toNumber());
+      }, options.delay || 10000);
+      process.on("SIGINT", () => {
+        clearInterval(interval);
+        process.exit();
+      });
+    }
   });
 
 function getTestRevealers(number?: number) {
