@@ -129,8 +129,8 @@ program
   .command("register:test")
   .description("Start N revealers for testing")
   .option("-N, --number <x>", "Number of revealers to launch", parseInt)
-  .option("-S, --stake <x>", "Total amount to stake", parseFloat, 100)
-  .option("-M, --min <x>", "Minimum message price", parseFloat, 1)
+  .option("-S, --stake <x>", "Total amount to stake", parseFloat, 1000)
+  .option("-M, --min <x>", "Minimum message price", parseFloat, 0.1)
   .option("-P, --per <x>", "Amount to stake per message", parseFloat, 5)
   .action(
     async (options: {
