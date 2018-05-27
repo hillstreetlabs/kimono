@@ -202,6 +202,7 @@ export default class Revealer {
         publicKey: string;
       } = await ipfs.getJson(message.encryptedFragmentsIpfsHash);
       const senderPublicKey = crypto.hexToBytes(content.publicKey);
+      console.log(content.secretFragments, this.address);
       if (content.secretFragments && !content.secretFragments[this.address]) {
         // We are not a revealer, don't add this message
         return;
@@ -277,9 +278,8 @@ export default class Revealer {
         ) {
           await this.contract.revealFragment(
             crypto.bytesToBn(message.nonce),
-            crypto.bytesToHex(
-              crypto.sha3(this.fragmentsByNonce[message.nonceHex])
-            ),
+            crypto.bytesToHex(this.fragmentsByNonce[message.nonceHex]),
+
             {
               from: this.address,
               gas: GAS_LIMIT

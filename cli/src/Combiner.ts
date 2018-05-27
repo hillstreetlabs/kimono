@@ -76,7 +76,6 @@ export default class Combiner {
   }
 
   async start() {
-    console.log("HELLOOO");
     if (!this.isSetup) await this.setup();
     this.debug("Starting Kimono Combiner with address", this.address);
     this.ethstream.start();
@@ -98,7 +97,8 @@ export default class Combiner {
     // Add fragments for messages that are in the messages.
     if (event.onTimeRevealerCount.toNumber() == 1) this.addMessage(message);
     if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) {
-      if (this.fragmentsByNonce[message.nonceHex].length === 0) {
+      console.log("HEY HEY HEY", this.fragmentsByNonce[message.nonceHex]);
+      if (this.fragmentsByNonce[message.nonceHex] === undefined) {
         this.fragmentsByNonce[message.nonceHex] = [
           crypto.bytesToShare(crypto.hexToBytes(event.fragment))
         ];
@@ -168,6 +168,10 @@ export default class Combiner {
               from: this.address,
               gas: GAS_LIMIT
             }
+          );
+
+          const result = await this.contract.getMessage(
+            crypto.bytesToBn(message.nonce)
           );
         }
       })
