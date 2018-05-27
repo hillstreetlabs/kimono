@@ -1,9 +1,30 @@
 import { action, observable, computed, autorun } from "mobx";
 import Eth from "ethjs";
+import BN from "bn.js";
 import Kimono, { crypto } from "kimono-js";
 
 const GET_CURRENT_USER_DELAY = 1000;
 const REFRESH_NETWORK_VERSION_DELAY = 1000;
+
+class User {
+  address: string;
+  @observable balanceWei = new BN(0);
+  @observable allowanceWei = new BN(0);
+
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
+  @computed
+  get balance() {
+    return Eth.fromWei(this.balanceWei, "ether");
+  }
+
+  @computed
+  get allowance() {
+    return Eth.fromWei(this.allowanceWei, "ether");
+  }
+}
 
 export default class Store {
   @observable currentUser;
@@ -60,13 +81,17 @@ export default class Store {
 
     if (!this.currentUser || accounts[0] != this.currentUser.address) {
       this.loadingCurrentUser = !!accounts[0]; // Set to false if nothing to load
-      this.currentUser = { address: accounts[0] };
+      this.currentUser = new User({ address: accounts[0] });
     }
 
     if (this.kimonoReady && this.currentUser && this.currentUser.address) {
-      this.currentUser.balance = await this.kimono.getCoinBalance(
+      this.currentUser.balanceWei = await this.kimono.getCoinBalance(
         this.currentUser.address
       );
+      this.currentUser.allowanceWei = await this.kimono.getCoinAllowance(
+        this.currentUser.address
+      );
+      console.log("Allowance", this.currentUser.allowance.toString());
       this.loadingCurrentUser = false;
     }
 

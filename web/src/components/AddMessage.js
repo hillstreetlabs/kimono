@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { inject, observer } from "mobx-react";
-import { action, observable } from "mobx";
+import { computed, action, observable } from "mobx";
 import { Link } from "react-router-dom";
 import Eth from "ethjs";
 import Spacer from "./Spacer";
@@ -47,6 +47,7 @@ export default class AddMessage extends Component {
   @observable currentBlockNumber;
   @observable createMessageStatus = "none";
   @observable showAdvancedOptions = false;
+  @observable unlockingKimonoCoin = false;
   @observable
   newMessage = {
     secret: null,
@@ -123,6 +124,17 @@ export default class AddMessage extends Component {
     this.showAdvancedOptions = !this.showAdvancedOptions;
   }
 
+  @computed
+  get kimonoCoinUnlocked() {
+    if (!this.props.store.currentUser) return null;
+    return this.props.store.currentUser.allowanceWei.gt(new BN(0));
+  }
+
+  unlockKimonoCoin() {
+    this.unlockingKimonoCoin = true;
+    this.props.store.kimono.approveAll(this.props.store.currentUser.address);
+  }
+
   render() {
     return (
       <Container>
@@ -152,11 +164,21 @@ export default class AddMessage extends Component {
             <h3>OPEN token balance</h3>
             <Spacer size={0.5} />
             <p>
-              {Eth.fromWei(
-                this.props.store.currentUser.balance,
-                "ether"
-              ).toString()}{" "}
-              OPEN tokens
+              {this.kimonoCoinUnlocked ? (
+                <span>
+                  {this.props.store.currentUser.balance.toString()} OPEN tokens
+                </span>
+              ) : (
+                <Button
+                  onClick={() => this.unlockKimonoCoin()}
+                  disabled={this.unlockingKimonoCoin}
+                  loading={this.unlockingKimonoCoin}
+                >
+                  {this.unlockingKimonoCoin
+                    ? "Unlocking..."
+                    : "Unlock OPEN tokens"}
+                </Button>
+              )}
             </p>
           </div>
           <Spacer />
@@ -225,7 +247,9 @@ export default class AddMessage extends Component {
           <div style={{ fontSize: "1.4em" }}>
             <AnimatedButton
               disabled={
-                !this.newMessage.secret || this.createMessageStatus != "none"
+                !this.newMessage.secret ||
+                !this.kimonoCoinUnlocked ||
+                this.createMessageStatus != "none"
               }
               onClick={() => this.createMessage()}
               loading={this.createMessageStatus != "none"}
