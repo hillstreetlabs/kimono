@@ -81,7 +81,7 @@ export default class Store {
       Eth.fromUtf8(message, "hex"),
       this.currentUser.address
     );
-    const secretKey = crypto.sha3(crypto.hexToBytes(result));
+    const secretKey = crypto.keccak256(crypto.hexToBytes(result));
     return crypto.bytesToHex(secretKey);
   }
 }

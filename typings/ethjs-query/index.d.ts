@@ -27,6 +27,7 @@ declare module "ethjs-query" {
     net_version(): Promise<string>;
     sendTransaction(transaction: Transaction): Promise<string>;
     sendRawTransaction(signedTransaction: string): Promise<string>;
+    blockNumber(): Promise<BN>;
   }
 
   namespace EthjsQuery {
