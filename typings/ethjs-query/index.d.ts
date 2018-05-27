@@ -1,11 +1,16 @@
 declare module "ethjs-query" {
-  import EthjsHttpProvider = require("ethjs-provider-http");
   import EthjsRpc = require("ethjs-rpc");
   import BN = require("bn.js");
-  import { Block, Transaction, TransactionReceipt, Log } from "ethjs-shared";
+  import {
+    Block,
+    Transaction,
+    TransactionReceipt,
+    Log,
+    IProvider
+  } from "ethjs-shared";
 
   class EthjsQuery {
-    constructor(provider: EthjsHttpProvider);
+    constructor(provider: IProvider);
     rpc: EthjsRpc;
     accounts(): Promise<Array<string>>;
     call(transaction: Transaction): Promise<any>;

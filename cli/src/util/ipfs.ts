@@ -35,6 +35,5 @@ export async function addJson(data: Object) {
 
 export async function getJson(hash: string) {
   const buffer = await this.get(hash);
-  console.log(util.encodeUTF8(new Uint8Array(buffer)));
   return JSON.parse(util.encodeUTF8(new Uint8Array(buffer)));
 }

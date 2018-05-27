@@ -5,7 +5,6 @@ import program from "commander";
 import Revealer from "./Revealer";
 import Combiner from "./Combiner";
 import Eth from "ethjs-query";
-import BN from "bn.js";
 import createProvider from "./util/createProvider";
 import advanceBlock from "./util/advanceBlock";
 
@@ -40,6 +39,34 @@ program
     });
   });
 
+function getTestCombiners(number?: number) {
+  const privateKeys: string[] = process.env.TEST_PRIVATE_KEYS.split(",");
+  number = number || privateKeys.length;
+  const combiners: Combiner[] = new Array(number)
+    .fill(0)
+    .map(
+      (_, i) =>
+        new Combiner(createProvider(privateKeys[i], process.env.JSON_RPC_URL))
+    );
+  return combiners;
+}
+
+program
+  .command("combine:test")
+  .description("Start N combiners for testing")
+  .option("-N, --number <x>", "Number of combiners to launch", parseInt)
+  .action(async (options: { number: number }) => {
+    const combiners = getTestCombiners(options.number);
+    combiners.forEach(async combiner => {
+      await combiner.start();
+    });
+
+    process.on("SIGINT", async () => {
+      await Promise.all(combiners.map(combiner => combiner.exit()));
+      process.exit();
+    });
+  });
+
 program
   .command("advanceBlock")
   .description("Adds a block every N milliseconds")
@@ -48,12 +75,13 @@ program
   .action(async (options: { delay: number; to: number }) => {
     const provider = createProvider(
       process.env.PRIVATE_KEY,
-      process.env.JSON_RPC_URL
+      process.env.TEST_JSON_RPC_URL
     );
     const eth = new Eth(provider);
 
     if (options.to) {
       let blockNumber = (await eth.blockNumber()).toNumber();
+      console.log(blockNumber);
       while (blockNumber < options.to) {
         await advanceBlock(provider);
         blockNumber = (await eth.blockNumber()).toNumber();

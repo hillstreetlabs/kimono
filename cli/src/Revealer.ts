@@ -46,8 +46,16 @@ interface KimonoContract {
   ) => Promise<string>;
   getMessageNoncesForRevealer: (address: string) => Promise<{ nonces: BN[] }>;
   getMessage: (nonce: BN) => Promise<IContractMessage>;
-  messageToRevealerToFragments: (nonce: BN, address: string) => Promise<BN[]>;
-  revealFragment: (nonce: BN, fragment: BN, opts?: any) => Promise<string>;
+  getFragmentByMessageAndRevealer: (
+    nonce: BN,
+    address: string
+  ) => Promise<{ piece1: string; piece2: string }>;
+  revealFragment: (nonce: BN, fragment: string, opts?: any) => Promise<string>;
+  messageToRevealerToHashOfFragments: (
+    nonce: BN,
+    address: string
+  ) => Promise<[BN]>;
+  test_getFragmentHash: (p1: string, p2: string) => Promise<[string]>;
 }
 
 interface KimonoCoinContract {
@@ -74,6 +82,7 @@ export default class Revealer {
   isSetup: boolean;
   messages: Message[] = [];
   fragmentsByNonce: { [nonce: string]: Uint8Array } = {};
+  messagesSeen: { [nonce: string]: boolean } = {};
 
   constructor(secretKey: string, rpcUrl: string) {
     this.secretKey = crypto.hexToBytes(secretKey);
@@ -88,7 +97,7 @@ export default class Revealer {
     });
     this.eth = new Eth(this.provider);
     const accounts = await this.eth.accounts();
-    this.address = accounts[0];
+    this.address = accounts[0].toLowerCase();
 
     this.contract = await getContract<KimonoContract>(this.eth, kimono);
     this.coinContract = await getContract<KimonoCoinContract>(
@@ -164,31 +173,69 @@ export default class Revealer {
 
   async addMessage(message: Message) {
     // Don't add the same message twice
-    if (this.messages.some(msg => msg.nonceHex === message.nonceHex)) return;
+    if (this.messagesSeen[message.nonceHex]) return;
+    this.messagesSeen[message.nonceHex] = true;
 
     // Check whether we have revealed a fragment for this message already
-    const [revealedFragment] = await this.contract.messageToRevealerToFragments(
+    const {
+      piece1,
+      piece2
+    } = await this.contract.getFragmentByMessageAndRevealer(
       crypto.bytesToBn(message.nonce),
       this.address
     );
-    if (revealedFragment.gt(new BN(0))) {
+    const revealedFragment = crypto.bytesToShare(
+      crypto.hexToBytes(piece1 + piece2.substr(2))
+    );
+    if (
+      revealedFragment !==
+      "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    ) {
       // We've revealed this fragment, don't add this message
       return;
     }
 
     // Grab IPFS data
     try {
-      const content: { [address: string]: string } = await ipfs.getJson(
-        message.encryptedFragmentsIpfsHash
+      const content: {
+        secretFragments: { [address: string]: string };
+        publicKey: string;
+      } = await ipfs.getJson(message.encryptedFragmentsIpfsHash);
+      const senderPublicKey = crypto.hexToBytes(content.publicKey);
+      if (content.secretFragments && !content.secretFragments[this.address]) {
+        // We are not a revealer, don't add this message
+        return;
+      }
+      const encryptedFragment = crypto.hexToBytes(
+        content.secretFragments[this.address]
       );
-      this.fragmentsByNonce[message.nonceHex] = crypto.hexToBytes(
-        content[this.address]
-      ); // Still encrypted
+      this.fragmentsByNonce[message.nonceHex] = crypto.decryptSecretForRevealer(
+        encryptedFragment,
+        message.nonce,
+        senderPublicKey,
+        this.secretKey
+      );
+
+      // Double check fragment hash is right
+      const [
+        contractHash
+      ] = await this.contract.messageToRevealerToHashOfFragments(
+        crypto.bytesToBn(message.nonce),
+        this.address
+      );
+      if (
+        crypto.bytesToHex(crypto.bnToBytes(contractHash, 32)) !==
+        crypto.bytesToHex(
+          crypto.keccak256(this.fragmentsByNonce[message.nonceHex])
+        )
+      )
+        throw new Error("Hash doesn't match hash on contract");
     } catch (e) {
+      console.warn(e);
       this.debug(
         "Warning: got invalid IPFS content for message",
         message.nonceHex,
-        new Uint8Array(await ipfs.get(message.encryptedFragmentsIpfsHash))
+        message.encryptedFragmentsIpfsHash
       );
     }
 
@@ -218,33 +265,30 @@ export default class Revealer {
 
     await Promise.all(
       this.messages.map(async message => {
-        console.log(
-          "Checking if message should be revealed",
-          message.revealBlock,
-          rawBlock.number
-        );
         if (rawBlock.number >= message.revealBlock + message.revealPeriod) {
           // Forget this message, we missed it
           messagesToRemove.push(message);
           return;
         }
+
         if (
           rawBlock.number >= message.revealBlock &&
           rawBlock.number <= message.revealBlock + message.revealPeriod
         ) {
-          console.log("We should reveal", message);
           await this.contract.revealFragment(
             crypto.bytesToBn(message.nonce),
-            crypto.bytesToBn(
-              crypto.hexToBytes(
-                "0x0000000000000000000000000000000000000000000000000000000000000000"
-              )
-            ),
+            crypto.bytesToHex(this.fragmentsByNonce[message.nonceHex]),
+
             {
               from: this.address,
               gas: GAS_LIMIT
             }
           );
+          this.debug(
+            "Revealed fragment " +
+              crypto.bytesToHex(this.fragmentsByNonce[message.nonceHex])
+          );
+          messagesToRemove.push(message);
         }
       })
     );

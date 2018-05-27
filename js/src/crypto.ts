@@ -13,6 +13,38 @@ export function bytesToBn(bytes: Uint8Array) {
   return new BN(bytesToHex(bytes).substring(2), 16);
 }
 
+// HACKITY HACK HACK
+// WARNING: this requires that there be less than 256 shares!!!!!
+// NOTE: shareToBytes will return a length 50 Uint8Array
+export function shareToBytes(share: string): Uint8Array {
+  const { bits, id, data } = secrets.extractShareComponents(share);
+  const bytes = [];
+  bytes.push(bits);
+  bytes.push(id);
+  bytes.push(...Array.from(hexToBytes(data)));
+  return new Uint8Array(bytes);
+}
+
+export function bytesToShare(bytes: Uint8Array): string {
+  const bits = bytes[0];
+  const id = bytes[1];
+  let idByte = id.toString(16);
+  if (idByte.length === 1) idByte = "0" + idByte;
+  const data = bytes.subarray(2);
+  return bits.toString(36) + idByte + bytesToHex(data).substr(2);
+}
+
+if (
+  bytesToShare(
+    shareToBytes(
+      "801b582607fffc74d6d8e5964fa081cd644d3df850413200d82fbe8dd31b97fe6a36560dce0ed92c358e517d9b1ff2c7fab"
+    )
+  ) !==
+  "801b582607fffc74d6d8e5964fa081cd644d3df850413200d82fbe8dd31b97fe6a36560dce0ed92c358e517d9b1ff2c7fab"
+) {
+  throw new Error("share/byte conversion is broken");
+}
+
 // Convert a hex string to a byte array
 export function hexToBytes(hex: string) {
   if (hex.indexOf("0x") === 0) hex = hex.substring(2);
@@ -103,9 +135,27 @@ export function encryptSecretForRevealer(
   return nacl.box(messageSecret, nonce, revealerPublicKey, secretKey);
 }
 
+export function decryptSecretForRevealer(
+  encryptedSecret: Uint8Array,
+  nonce: Uint8Array,
+  dealerPublicKey: Uint8Array,
+  revealerSecretKey: Uint8Array
+) {
+  return nacl.box.open(
+    encryptedSecret,
+    nonce,
+    dealerPublicKey,
+    revealerSecretKey
+  );
+}
+
 export function buildKeyPairFromSecret(secretKey: Uint8Array) {
   const { publicKey } = nacl.box.keyPair.fromSecretKey(secretKey);
   return { publicKey, secretKey };
+}
+
+export function secretKeyToPublicKey(secret: Uint8Array) {
+  return buildKeyPairFromSecret(secret).publicKey;
 }
 
 export function createSecretFragments(
@@ -119,7 +169,7 @@ export function createSecretFragments(
     minFragments,
     totalFragments
   );
-  return hexShares.map(hex => hexToBytes(hex));
+  return hexShares.map(hex => shareToBytes(hex));
 }
 
 export function combineSecretFragments(fragments: Array<string>) {
