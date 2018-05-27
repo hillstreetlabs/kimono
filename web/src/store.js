@@ -91,7 +91,6 @@ export default class Store {
       this.currentUser.allowanceWei = await this.kimono.getCoinAllowance(
         this.currentUser.address
       );
-      console.log("Allowance", this.currentUser.allowance.toString());
       this.loadingCurrentUser = false;
     }
 
