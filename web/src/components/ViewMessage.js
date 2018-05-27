@@ -9,6 +9,12 @@ import { Container, Wrapper, HeaderLink } from "./Root";
 import styled from "react-emotion";
 import { basePadding, colors } from "../styles";
 
+const MessageContent = styled("div")`
+  padding: ${basePadding}px;
+  background-color: ${colors.lightBorderGrey};
+  font-size: 1.3em;
+`;
+
 @inject("store")
 @observer
 export default class ViewMessage extends Component {
@@ -70,8 +76,13 @@ export default class ViewMessage extends Component {
                 <Spacer size={0.5} />
                 {this.message.messageContent ? (
                   <div>
-                    {this.message.messageContent}
-                    <Badge color={colors.darkGreen}>Revealed</Badge>
+                    <Badge color={colors.darkGreen}>
+                      Revealed by {this.message.secretConstructor}
+                    </Badge>
+                    <Spacer size={0.5} />
+                    <MessageContent>
+                      {this.message.messageContent}
+                    </MessageContent>
                   </div>
                 ) : (
                   <span>
