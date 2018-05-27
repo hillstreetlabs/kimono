@@ -7,6 +7,8 @@ import * as ipfs from "./ipfs";
 import * as crypto from "./crypto";
 import KimonoBuild from "../Kimono.json";
 import KimonoCoinBuild from "../KimonoCoin.json";
+import getTransactionSuccess from "./getTransactionSuccess";
+import { TransactionReceipt } from "ethjs-shared";
 
 interface KimonoContract {
   createMessage: (
@@ -68,6 +70,7 @@ export default class Kimono {
   eth: Eth;
   kimono: KimonoContract;
   kimonoCoin: KimonoCoinContract;
+  getTransactionSuccess: (txHash: string) => Promise<TransactionReceipt>;
 
   constructor(provider: HttpProvider, networkVersion: string) {
     // Check web3 provider
@@ -76,6 +79,7 @@ export default class Kimono {
         "web3 provider must be specified (e.g. `new Kimono(new HttpProvider('http://localhost:8545'))`)"
       );
     this.eth = new Eth(provider);
+    this.getTransactionSuccess = getTransactionSuccess(this.eth);
     // Init Kimono contract instance
     const kimonoAddress = (KimonoBuild.networks[networkVersion] || {}).address;
     if (!kimonoAddress)
@@ -276,6 +280,8 @@ export default class Kimono {
     const encryptedContentIpfsHash = await ipfs.add(encryptedContent);
     // Send createMessage transaction
 
+    console.log(revealerAddresses);
+
     const transactionHash = await this.kimono.createMessage(
       crypto.bytesToHex(nonce),
       minFragments,
@@ -291,7 +297,7 @@ export default class Kimono {
       opts || {}
     );
     const getReceipt = async () => {
-      const receipt = await this.eth.getTransactionReceipt(transactionHash);
+      const receipt = await this.getTransactionSuccess(transactionHash);
       const events = this.kimono.decodeLogs(receipt.logs);
       return { ...receipt, events };
     };

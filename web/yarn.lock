@@ -4514,9 +4514,9 @@ killable@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/killable/-/killable-1.0.0.tgz#da8b84bd47de5395878f95d64d02f2449fe05e6b"
 
-kimono-js@^0.0.3:
-  version "0.0.3"
-  resolved "https://registry.yarnpkg.com/kimono-js/-/kimono-js-0.0.3.tgz#0fd098ad13814491d13fca00ae570263f7eb1d02"
+kimono-js@^0.0.4:
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/kimono-js/-/kimono-js-0.0.4.tgz#febd2c3f91e9810d473b51e7f4f62f15129d665c"
   dependencies:
     "@types/form-data" "^2.2.1"
     "@types/isomorphic-fetch" "^0.0.34"
