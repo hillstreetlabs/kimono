@@ -1,17 +1,23 @@
 import React, { Component } from "react";
 import { inject, observer } from "mobx-react";
-import { action, observable } from "mobx";
+import { computed, action, observable, when } from "mobx";
 import { Link } from "react-router-dom";
 import Spacer from "./Spacer";
 import Button from "./Button";
 import Input from "./Input";
-import Textarea from "./Textarea";
 import BN from "bn.js";
 import { Container, Wrapper, HeaderLink } from "./Root";
 import styled, { keyframes } from "react-emotion";
 import { basePadding, colors, lighten } from "../styles";
 
-const BASE_UNIT = new BN('1000000000000000000');
+const BASE_UNIT = new BN("1000000000000000000");
+
+const gentlePulseColor = keyframes`
+  0% { background-color: ${colors.darkGreen}; }
+  45% { background-color: ${lighten(colors.blue, 20)}; }
+  100% {background-color: ${colors.darkGreen}; }
+`;
+
 const AnimatedButton = styled(Button)`
   ${props =>
     props.loading &&
@@ -24,57 +30,94 @@ const AnimatedButton = styled(Button)`
 @inject("store")
 @observer
 export default class Faucet extends Component {
-  @observable displaySuccessMessage = false;
-  @observable currentBalance;
-  // BEGIN -> PENDING -> COMPLETE
-  @observable faucetState = 'BEGIN';
+  @observable unlockingCoins = false;
+  @observable requestingCoins = false;
 
-  componentDidMount() {
-    this.getCurrentBalance();
+  @computed
+  get kimonoCoinUnlocked() {
+    if (!this.props.store.currentUser) return null;
+    return this.props.store.currentUser.allowanceWei.gt(new BN(0));
   }
 
   async requestCoins() {
-    const response = await this.props.store.kimono.faucet(
-      { from: this.props.store.currentUser.address}
-    );
-
-    await this.getCurrentBalance();
-    this.showSuccessMessage();
+    this.requestingCoins = true;
+    const startingBalance = this.props.store.currentUser.balanceWei;
+    try {
+      await this.props.store.kimono.faucet({
+        from: this.props.store.currentUser.address
+      });
+      when(
+        () => this.props.store.currentUser.balanceWei.gt(startingBalance),
+        () => (this.requestingCoins = false)
+      );
+    } catch (err) {
+      this.requestingCoins = false;
+    }
   }
 
-  async getCurrentBalance() {
-    let balance = await this.props.store.kimono.getCoinBalance(this.props.store.currentUser.address);
-    this.currentBalance = balance.div(BASE_UNIT).toString();
-  }
-
-  showSuccessMessage() {
-    this.displaySuccessMessage = true;
+  unlockCoins() {
+    this.unlockingCoins = true;
+    try {
+      this.props.store.kimono.approveAll(this.props.store.currentUser.address);
+    } catch (err) {
+      this.unlockingCoins = false;
+    }
   }
 
   render() {
+    const { balance, address, allowance } = this.props.store.currentUser;
     return (
       <Container>
         <Wrapper color={colors.green}>
-          <h1>Faucet</h1>
+          <h1>
+            <HeaderLink to="/">Kimono Time Capsule</HeaderLink> >{" "}
+            <span style={{ fontWeight: 300 }}>OPEN token faucet</span>
+          </h1>
           <Spacer />
-          <div>
-            You have {
-              this.currentBalance
-            } KimonoCoins
-          </div>
+          <p>Get OPEN tokens for free to use on a testnet.</p>
           <Spacer />
-          <AnimatedButton
-            onClick={() => this.requestCoins()}
-          >
-            Get coins
-          </AnimatedButton>
-          <Spacer />
-          { this.displaySuccessMessage &&
-            <div>Coins requested (please wait and refresh the page)</div>
-          }
+          {this.kimonoCoinUnlocked ? (
+            <div>
+              <h3>
+                Current balance for {this.props.store.currentUser.address}:
+              </h3>
+              <Spacer size={0.5} />
+              <Input value={`${balance.toString()} OPEN`} disabled={true} />
+              <Spacer />
+              <div style={{ fontSize: "1.3em" }}>
+                <AnimatedButton
+                  onClick={() => this.requestCoins()}
+                  disabled={this.requestingCoins}
+                  loading={this.requestingCoins}
+                >
+                  {this.requestingCoins
+                    ? "Processing request..."
+                    : "Get some OPEN tokens"}
+                </AnimatedButton>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3>
+                You need to unlock your account for payment and staking before
+                receiving OPEN tokens.
+              </h3>
+              <Spacer size={0.5} />
+              <div style={{ fontSize: "1.3em" }}>
+                <AnimatedButton
+                  onClick={() => this.unlockCoins()}
+                  disabled={this.unlockingCoins}
+                  loading={this.unlockingCoins}
+                >
+                  {this.unlockingCoins
+                    ? "Unlocking OPEN tokens..."
+                    : "Unlock OPEN tokens"}
+                </AnimatedButton>
+              </div>
+            </div>
+          )}
         </Wrapper>
       </Container>
     );
   }
-
 }

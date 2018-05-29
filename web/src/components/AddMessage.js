@@ -167,6 +167,8 @@ export default class AddMessage extends Component {
               {this.kimonoCoinUnlocked ? (
                 <span>
                   {this.props.store.currentUser.balance.toString()} OPEN tokens
+                  <Spacer inline size={0.5} />
+                  <Link to="/faucet">Get more OPEN tokens &rarr;</Link>
                 </span>
               ) : (
                 <Button

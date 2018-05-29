@@ -67,6 +67,8 @@ export default class Landing extends Component {
               >
                 Github
               </FooterLink>
+              <Spacer inline size={0.5} />
+              <FooterLink href="/faucet">OPEN Faucet</FooterLink>
             </div>
             <StreetLink href="https://hillstreetlabs.com/" target="_blank">
               <img src={streetSrc} />
