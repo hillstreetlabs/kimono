@@ -1,6 +1,6 @@
 {
   "name": "kimono-js",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Javascript library for the Kimono network on Ethereum",
   "main": "dist/index.js",
   "repository": "https://github.com/hillstreetlabs/kimono",

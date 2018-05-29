@@ -38,7 +38,7 @@ interface KimonoCoinContract {
   decodeLogs(logs: any): any;
   balanceOf(address: string): Promise<{ 0: BN }>;
   allowance(address: string, spender: string): Promise<{ 0: BN }>;
-  approveAll(address: string): Promise<{ 0: BN }>;
+  approveAll(address: string, opts?: any): Promise<{ 0: BN }>;
   faucet(opts?: any): Promise<boolean>;
 }
 
@@ -119,8 +119,8 @@ export default class Kimono {
     return response[0];
   }
 
-  async approveAll(address: string): Promise<BN> {
-    const response = await this.kimonoCoin.approveAll(this.kimono.address, {
+  async approveAll(address: string): Promise<void> {
+    await this.kimonoCoin.approveAll(this.kimono.address, {
       from: address
     });
   }
