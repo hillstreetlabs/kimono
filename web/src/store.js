@@ -1,4 +1,4 @@
-import { action, observable, computed, autorun } from "mobx";
+import { action, observable, computed } from "mobx";
 import Eth from "ethjs";
 import BN from "bn.js";
 import Kimono, { crypto } from "kimono-js";
